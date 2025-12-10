@@ -4,3 +4,4 @@ Cargo.lock
 /dist
 *.wasm
 pkg/
+/src-tauri/target/

@@ -1,0 +1,15 @@
+{
+  "$schema": "https://schema.tauri.app/config/2.0",
+  "identifier": "default",
+  "description": "Default permissions for the application",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:default",
+    "core:window:allow-set-title",
+    "core:window:allow-close",
+    "clipboard-manager:default",
+    "clipboard-manager:allow-write-text"
+  ]
+}
+
