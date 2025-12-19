@@ -17,7 +17,7 @@
         body {
             font-family: 'JetBrains Mono', monospace;
             font-weight: 500;
-            background: #f5f5f5;
+            background: #e0e5ec;
             padding: 10px;
             height: 100vh;
             overflow: hidden;
@@ -29,18 +29,21 @@
             flex-direction: column;
             max-width: 100%;
             margin: 0 auto;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            background: #e0e5ec;
+            border-radius: 20px;
+            box-shadow: 9px 9px 16px rgba(163, 177, 198, 0.6),
+                        -9px -9px 16px rgba(255, 255, 255, 0.5);
             padding: 20px;
         }
 
         h1 {
             text-align: center;
-            color: #333;
+            color: #5a6a7d;
             margin-bottom: 20px;
             font-size: 24px;
             font-weight: 700;
+            text-shadow: 2px 2px 4px rgba(255, 255, 255, 0.8),
+                         -2px -2px 4px rgba(163, 177, 198, 0.4);
         }
 
         .button-group {
@@ -61,74 +64,147 @@
 
         .language-selector label {
             font-weight: 600;
-            color: #333;
+            color: #5a6a7d;
         }
 
         .language-selector select {
-            padding: 8px 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
             font-size: 14px;
             font-family: 'JetBrains Mono', monospace;
             font-weight: 500;
             cursor: pointer;
-            background: white;
+            background: #e0e5ec;
             height: 42px;
+            box-sizing: border-box;
+            box-shadow: inset 4px 4px 8px rgba(163, 177, 198, 0.6),
+                        inset -4px -4px 8px rgba(255, 255, 255, 0.5);
+            color: #5a6a7d;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            padding-right: 40px;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235a6a7d' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 20px;
         }
 
         .language-selector select:focus {
             outline: none;
-            border-color: #2196F3;
+            box-shadow: inset 6px 6px 10px rgba(163, 177, 198, 0.7),
+                        inset -6px -6px 10px rgba(255, 255, 255, 0.6);
+        }
+
+        .language-selector select option {
+            background: #e0e5ec;
+            color: #5a6a7d;
+            padding: 10px 20px;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+        }
+
+        .language-selector select option:hover {
+            background: linear-gradient(145deg, #d4dae5, #edf2f9);
+            color: #3d4a5c;
+        }
+
+        .language-selector select option:checked {
+            background: linear-gradient(145deg, #6fa3f5, #5d8dd1);
+            color: white;
+            font-weight: 600;
         }
 
         .language-selector input {
-            padding: 8px 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 10px;
             font-size: 14px;
             font-family: 'JetBrains Mono', monospace;
             font-weight: 500;
             width: 200px;
             height: 42px;
             box-sizing: border-box;
+            background: #e0e5ec;
+            box-shadow: inset 4px 4px 8px rgba(163, 177, 198, 0.6),
+                        inset -4px -4px 8px rgba(255, 255, 255, 0.5);
+            color: #5a6a7d;
         }
 
         .language-selector input:focus {
             outline: none;
-            border-color: #2196F3;
+            box-shadow: inset 6px 6px 10px rgba(163, 177, 198, 0.7),
+                        inset -6px -6px 10px rgba(255, 255, 255, 0.6);
+        }
+
+        input::placeholder,
+        textarea::placeholder {
+            color: #a3b1c6;
+            opacity: 0.7;
         }
 
         button {
             padding: 10px 20px;
             border: none;
-            border-radius: 4px;
+            border-radius: 10px;
             font-size: 14px;
             cursor: pointer;
             transition: all 0.3s;
             font-weight: 500;
+            background: #e0e5ec;
+            box-shadow: 6px 6px 12px rgba(163, 177, 198, 0.6),
+                        -6px -6px 12px rgba(255, 255, 255, 0.5);
+            color: #5a6a7d;
         }
 
         button.primary {
-            background: #2196F3;
+            background: linear-gradient(145deg, #6fa3f5, #5d8dd1);
             color: white;
+            box-shadow: 6px 6px 12px rgba(93, 141, 209, 0.4),
+                        -6px -6px 12px rgba(111, 163, 245, 0.4);
         }
 
         button.primary:hover {
-            background: #1976D2;
+            box-shadow: 4px 4px 8px rgba(93, 141, 209, 0.4),
+                        -4px -4px 8px rgba(111, 163, 245, 0.4);
+        }
+
+        button.primary:active {
+            box-shadow: inset 4px 4px 8px rgba(93, 141, 209, 0.4),
+                        inset -4px -4px 8px rgba(111, 163, 245, 0.4);
         }
 
         button.secondary {
-            background: #757575;
+            background: linear-gradient(145deg, #8a8a8a, #707070);
             color: white;
+            box-shadow: 6px 6px 12px rgba(112, 112, 112, 0.4),
+                        -6px -6px 12px rgba(138, 138, 138, 0.4);
         }
 
         button.secondary:hover {
-            background: #616161;
+            box-shadow: 4px 4px 8px rgba(112, 112, 112, 0.4),
+                        -4px -4px 8px rgba(138, 138, 138, 0.4);
+        }
+
+        button.secondary:active {
+            box-shadow: inset 4px 4px 8px rgba(112, 112, 112, 0.4),
+                        inset -4px -4px 8px rgba(138, 138, 138, 0.4);
         }
 
         button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
+        }
+
+        button:hover:not(:disabled):not(.primary):not(.secondary) {
+            box-shadow: 4px 4px 8px rgba(163, 177, 198, 0.6),
+                        -4px -4px 8px rgba(255, 255, 255, 0.5);
+        }
+
+        button:active:not(:disabled):not(.primary):not(.secondary) {
+            box-shadow: inset 4px 4px 8px rgba(163, 177, 198, 0.6),
+                        inset -4px -4px 8px rgba(255, 255, 255, 0.5);
         }
 
         .editor-container {
@@ -155,44 +231,57 @@
         .editor-label {
             font-size: 16px;
             font-weight: 600;
-            color: #333;
+            color: #5a6a7d;
         }
 
         .copy-button {
             padding: 6px 12px;
             font-size: 13px;
-            background: #4CAF50;
+            background: linear-gradient(145deg, #5ec062, #4fa952);
             color: white;
+            box-shadow: 4px 4px 8px rgba(79, 169, 82, 0.4),
+                        -4px -4px 8px rgba(94, 192, 98, 0.4);
         }
 
         .copy-button:hover {
-            background: #45a049;
+            box-shadow: 3px 3px 6px rgba(79, 169, 82, 0.4),
+                        -3px -3px 6px rgba(94, 192, 98, 0.4);
+        }
+
+        .copy-button:active {
+            box-shadow: inset 3px 3px 6px rgba(79, 169, 82, 0.4),
+                        inset -3px -3px 6px rgba(94, 192, 98, 0.4);
         }
 
         textarea {
             flex: 1;
             width: 100%;
             padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
+            border: none;
+            border-radius: 10px;
             font-family: 'JetBrains Mono', monospace;
             font-weight: 500;
             font-size: 14px;
             resize: none;
+            background: #e0e5ec;
+            box-shadow: inset 4px 4px 8px rgba(163, 177, 198, 0.6),
+                        inset -4px -4px 8px rgba(255, 255, 255, 0.5);
+            color: #5a6a7d;
         }
 
         textarea:focus {
             outline: none;
-            border-color: #2196F3;
+            box-shadow: inset 6px 6px 10px rgba(163, 177, 198, 0.7),
+                        inset -6px -6px 10px rgba(255, 255, 255, 0.6);
         }
 
         textarea.output {
-            background: #f5f5f5;
+            background: #e0e5ec;
         }
 
         .status-message {
             padding: 12px;
-            border-radius: 4px;
+            border-radius: 10px;
             text-align: center;
             font-size: 14px;
             margin-top: 10px;
@@ -200,16 +289,23 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            background: #e0e5ec;
+            box-shadow: inset 4px 4px 8px rgba(163, 177, 198, 0.6),
+                        inset -4px -4px 8px rgba(255, 255, 255, 0.5);
         }
 
         .status-message.success {
-            background: #e8f5e9;
+            background: linear-gradient(145deg, #d4edda, #c3e6cb);
             color: #2e7d32;
+            box-shadow: 4px 4px 8px rgba(195, 230, 203, 0.5),
+                        -4px -4px 8px rgba(212, 237, 218, 0.5);
         }
 
         .status-message.error {
-            background: #ffebee;
+            background: linear-gradient(145deg, #f8d7da, #f5c6cb);
             color: #c62828;
+            box-shadow: 4px 4px 8px rgba(245, 198, 203, 0.5),
+                        -4px -4px 8px rgba(248, 215, 218, 0.5);
         }
 
         .status-message.hidden {
