@@ -31,7 +31,7 @@
             margin: 0 auto;
             background: white;
             border-radius: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             padding: 20px;
         }
 
@@ -49,6 +49,53 @@
             justify-content: center;
             flex-wrap: wrap;
             margin-bottom: 20px;
+        }
+
+        .language-selector {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+
+        .language-selector label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .language-selector select {
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            cursor: pointer;
+            background: white;
+            height: 42px;
+        }
+
+        .language-selector select:focus {
+            outline: none;
+            border-color: #2196F3;
+        }
+
+        .language-selector input {
+            padding: 8px 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            width: 200px;
+            height: 42px;
+            box-sizing: border-box;
+        }
+
+        .language-selector input:focus {
+            outline: none;
+            border-color: #2196F3;
         }
 
         button {
@@ -171,40 +218,57 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>JSON Formatter Tool</h1>
+<div class="container">
+    <h1>JSON Formatter Tool</h1>
 
-        <div class="button-group">
-            <button class="primary" id="minifyBtn">Minify JSON</button>
-            <button class="primary" id="formatBtn">Format JSON</button>
-            <button class="secondary" id="jsonToStringBtn">JSON → String</button>
-            <button class="secondary" id="stringToJsonBtn">String → JSON</button>
-            <button class="secondary" id="jsonToProtoBtn">JSON → Proto</button>
-            <button class="secondary" id="clearBtn">Clear All</button>
-        </div>
-
-        <div class="editor-container">
-            <div class="editor-section">
-                <div class="editor-header">
-                    <span class="editor-label">Input</span>
-                    <button class="copy-button" id="copyInputBtn">📋 Copy</button>
-                </div>
-                <textarea id="inputText" placeholder="Enter or paste JSON here..."></textarea>
-            </div>
-
-            <div class="editor-section">
-                <div class="editor-header">
-                    <span class="editor-label">Output</span>
-                    <button class="copy-button" id="copyOutputBtn">📋 Copy</button>
-                </div>
-                <textarea id="outputText" class="output" readonly></textarea>
-            </div>
-        </div>
-
-        <div class="status-message hidden" id="statusMessage"></div>
+    <div class="button-group">
+        <button class="primary" id="minifyBtn">Minify JSON</button>
+        <button class="primary" id="formatBtn">Format JSON</button>
+        <button class="secondary" id="jsonToStringBtn">JSON → String</button>
+        <button class="secondary" id="stringToJsonBtn">String → JSON</button>
+        <button class="secondary" id="jsonToProtoBtn">JSON → Proto</button>
+        <button class="secondary" id="clearBtn">Clear All</button>
     </div>
 
-    <script type="module" src="/main.js"></script>
+    <div class="language-selector">
+        <label for="languageSelect">Convert to Class:</label>
+        <select id="languageSelect">
+            <option value="typescript">TypeScript</option>
+            <option value="javascript">JavaScript</option>
+            <option value="python">Python</option>
+            <option value="rust">Rust</option>
+            <option value="java">Java</option>
+            <option value="csharp">C#</option>
+            <option value="go">Go</option>
+            <option value="kotlin">Kotlin</option>
+            <option value="swift">Swift</option>
+        </select>
+        <input type="text" id="classNameInputText" placeholder="Class name (optional)"/>
+        <button class="primary" id="jsonToClassBtn">Generate Class</button>
+    </div>
+
+    <div class="editor-container">
+        <div class="editor-section">
+            <div class="editor-header">
+                <span class="editor-label">Input</span>
+                <button class="copy-button" id="copyInputBtn">📋 Copy</button>
+            </div>
+            <textarea id="inputText" placeholder="Enter or paste JSON here..."></textarea>
+        </div>
+
+        <div class="editor-section">
+            <div class="editor-header">
+                <span class="editor-label">Output</span>
+                <button class="copy-button" id="copyOutputBtn">📋 Copy</button>
+            </div>
+            <textarea id="outputText" class="output" readonly></textarea>
+        </div>
+    </div>
+
+    <div class="status-message hidden" id="statusMessage"></div>
+</div>
+
+<script type="module" src="/main.js"></script>
 </body>
 </html>
 

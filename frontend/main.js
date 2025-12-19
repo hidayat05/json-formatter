@@ -4,6 +4,8 @@ const invoke = window.__TAURI_INTERNALS__.invoke;
 const inputText = document.getElementById('inputText');
 const outputText = document.getElementById('outputText');
 const statusMessage = document.getElementById('statusMessage');
+const language = document.getElementById('languageSelect');
+const classNameInput = document.getElementById('classNameInputText');
 
 function showStatus(message, isError = false) {
     statusMessage.textContent = message;
@@ -68,9 +70,33 @@ async function handleJsonToProto() {
     }
 }
 
+async function handleJsonToClass() {
+    try {
+        const languageSelected = language.value;
+        const className = classNameInput.value.trim() || 'Root';
+
+        const result = await invoke('json_to_class', {
+            input: inputText.value,
+            language: languageSelected,
+            name: className  // Use snake_case to match Rust parameter
+        });
+
+        outputText.value = result;
+        showStatus(`✓ JSON converted to ${languageSelected} class successfully`);
+    } catch (error) {
+        console.timeEnd('Conversion Time');
+        console.error('❌ Conversion Failed:', error);
+        console.groupEnd();
+
+        outputText.value = '';
+        showStatus(`Error: ${error}`, true);
+    }
+}
+
 function handleClear() {
     inputText.value = '';
     outputText.value = '';
+    classNameInput.value = '';
     statusMessage.className = 'status-message hidden';
 }
 
@@ -116,6 +142,7 @@ document.getElementById('formatBtn').addEventListener('click', handleFormat);
 document.getElementById('jsonToStringBtn').addEventListener('click', handleJsonToString);
 document.getElementById('stringToJsonBtn').addEventListener('click', handleStringToJson);
 document.getElementById('jsonToProtoBtn').addEventListener('click', handleJsonToProto);
+document.getElementById('jsonToClassBtn').addEventListener('click', handleJsonToClass);
 document.getElementById('clearBtn').addEventListener('click', handleClear);
 document.getElementById('copyInputBtn').addEventListener('click', handleCopyInput);
 document.getElementById('copyOutputBtn').addEventListener('click', handleCopyOutput);
