@@ -57,6 +57,17 @@ async function handleStringToJson() {
     }
 }
 
+async function handleJsonToProto() {
+    try {
+        const result = await invoke('json_to_proto', { input: inputText.value });
+        outputText.value = result;
+        showStatus('✓ JSON converted to Proto schema successfully');
+    } catch (error) {
+        outputText.value = '';
+        showStatus(`Error: ${error}`, true);
+    }
+}
+
 function handleClear() {
     inputText.value = '';
     outputText.value = '';
@@ -104,6 +115,7 @@ document.getElementById('minifyBtn').addEventListener('click', handleMinify);
 document.getElementById('formatBtn').addEventListener('click', handleFormat);
 document.getElementById('jsonToStringBtn').addEventListener('click', handleJsonToString);
 document.getElementById('stringToJsonBtn').addEventListener('click', handleStringToJson);
+document.getElementById('jsonToProtoBtn').addEventListener('click', handleJsonToProto);
 document.getElementById('clearBtn').addEventListener('click', handleClear);
 document.getElementById('copyInputBtn').addEventListener('click', handleCopyInput);
 document.getElementById('copyOutputBtn').addEventListener('click', handleCopyOutput);

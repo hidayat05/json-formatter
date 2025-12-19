@@ -8,6 +8,7 @@ A native desktop application built with Rust and Tauri for JSON manipulation. Fe
 - **Format JSON**: Pretty-print JSON with proper indentation
 - **JSON to String**: Convert JSON to an escaped string literal
 - **String to JSON**: Parse escaped JSON string literals back to formatted JSON
+- **JSON to Proto**: Generate Protocol Buffers (proto3) schema definition from JSON structure
 - **Copy to Clipboard**: One-click copy for both input and output with the 📋 Copy button
 - **Clear All**: Reset both input and output fields
 - **Keyboard Shortcuts**: Ctrl+M to minify, Ctrl+F to format
@@ -65,6 +66,7 @@ The built application will be in `src-tauri/target/release/bundle/`:
    - **Format JSON** (Ctrl+F): Formats JSON with indentation
    - **JSON → String**: Converts JSON to an escaped string
    - **String → JSON**: Converts an escaped string back to JSON
+   - **JSON → Proto**: Generates Protocol Buffers schema from JSON
    - **Clear All**: Resets both input and output
 4. View the result in the **Output** text area (right side)
 5. Click the **📋 Copy** button to copy input or output to your clipboard
@@ -117,6 +119,42 @@ The built application will be in `src-tauri/target/release/bundle/`:
 ```json
 {
   "name": "John"
+}
+```
+
+### JSON to Proto
+**Input:**
+```json
+{
+  "name": "John Doe",
+  "age": 30,
+  "email": "john@example.com",
+  "isActive": true,
+  "address": {
+    "street": "123 Main St",
+    "city": "New York",
+    "zipCode": 10001
+  },
+  "tags": ["developer", "rust", "tauri"]
+}
+```
+**Output:**
+```proto
+syntax = "proto3";
+
+message Root {
+  string name = 1;
+  int32 age = 2;
+  string email = 3;
+  bool is_active = 4;
+  Address address = 5;
+  repeated string tags = 6;
+}
+
+message Address {
+  string street = 1;
+  string city = 2;
+  int32 zip_code = 3;
 }
 ```
 

@@ -12,6 +12,7 @@ tauri-build = { version = "2.0", features = [] }
 tauri = { version = "2.0", features = [] }
 tauri-plugin-clipboard-manager = "2.0"
 serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
 
 [features]
 default = ["custom-protocol"]
