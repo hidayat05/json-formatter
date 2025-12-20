@@ -1,5 +1,7 @@
 # JSON Formatter
 
+![](docs/json-formatter.gif)
+
 A native desktop application built with Rust and Tauri for JSON manipulation. Features a modern web-based UI powered by HTML/CSS/JavaScript with Rust backend.
 
 ## Features
@@ -13,6 +15,7 @@ A native desktop application built with Rust and Tauri for JSON manipulation. Fe
 - **Clear All**: Reset both input and output fields
 - **Keyboard Shortcuts**: Ctrl+M to minify, Ctrl+F to format
 - **Native Performance**: Desktop application with native OS integration
+- **Json To Class**: Generate classes from JSON by selected language
 
 ## Requirements
 
@@ -215,8 +218,4 @@ cargo test
 - Frontend: Use browser dev tools (opened automatically in dev mode)
 - Backend: Add `dbg!()` macros or use `println!()` in Rust code
 - Logs appear in terminal when running `cargo tauri dev`
-
-## License
-
-This project is open source and available under your chosen license.
 
