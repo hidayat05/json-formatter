@@ -192,6 +192,23 @@
             inset -4px -4px 8px rgba(138, 138, 138, 0.4);
         }
 
+        button.danger {
+            background: linear-gradient(145deg, #f44336, #d32f2f);
+            color: white;
+            box-shadow: 6px 6px 12px rgba(211, 47, 47, 0.4),
+            -6px -6px 12px rgba(244, 67, 54, 0.4);
+        }
+
+        button.danger:hover {
+            box-shadow: 4px 4px 8px rgba(211, 47, 47, 0.4),
+            -4px -4px 8px rgba(244, 67, 54, 0.4);
+        }
+
+        button.danger:active {
+            box-shadow: inset 4px 4px 8px rgba(211, 47, 47, 0.4),
+            inset -4px -4px 8px rgba(244, 67, 54, 0.4);
+        }
+
         button:disabled {
             opacity: 0.5;
             cursor: not-allowed;
@@ -323,10 +340,6 @@
         <button class="secondary" id="jsonToStringBtn">JSON → String</button>
         <button class="secondary" id="stringToJsonBtn">String → JSON</button>
         <button class="secondary" id="jsonToProtoBtn">JSON → Proto</button>
-        <button class="secondary" id="clearBtn">Clear All</button>
-    </div>
-
-    <div class="button-group">
         <button class="secondary" id="protoToJsonBtn">Proto → JSON</button>
     </div>
 
@@ -345,6 +358,10 @@
         </select>
         <input type="text" id="classNameInputText" placeholder="Class name (optional)"/>
         <button class="primary" id="jsonToClassBtn">Generate Class</button>
+    </div>
+
+    <div class="button-group">
+        <button class="danger" id="clearBtn">Clear All</button>
     </div>
 
     <div class="editor-container">
