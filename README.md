@@ -11,6 +11,7 @@ A native desktop application built with Rust and Tauri for JSON manipulation. Fe
 - **JSON to String**: Convert JSON to an escaped string literal
 - **String to JSON**: Parse escaped JSON string literals back to formatted JSON
 - **JSON to Proto**: Generate Protocol Buffers (proto3) schema definition from JSON structure
+- **Proto to JSON**: Convert Protocol Buffers (proto3) schema to sample JSON data
 - **Copy to Clipboard**: One-click copy for both input and output with the 📋 Copy button
 - **Clear All**: Reset both input and output fields
 - **Keyboard Shortcuts**: Ctrl+M to minify, Ctrl+F to format
@@ -70,6 +71,7 @@ The built application will be in `src-tauri/target/release/bundle/`:
    - **JSON → String**: Converts JSON to an escaped string
    - **String → JSON**: Converts an escaped string back to JSON
    - **JSON → Proto**: Generates Protocol Buffers schema from JSON
+   - **Proto → JSON**: Converts Protocol Buffers schema to sample JSON
    - **Clear All**: Resets both input and output
 4. View the result in the **Output** text area (right side)
 5. Click the **📋 Copy** button to copy input or output to your clipboard
@@ -158,6 +160,42 @@ message Address {
   string street = 1;
   string city = 2;
   int32 zip_code = 3;
+}
+```
+
+### Proto to JSON
+**Input:**
+```proto
+syntax = "proto3";
+
+message User {
+  string name = 1;
+  int32 age = 2;
+  bool is_active = 3;
+  Address address = 4;
+  repeated string tags = 5;
+}
+
+message Address {
+  string street = 1;
+  string city = 2;
+  int32 zip_code = 3;
+}
+```
+**Output:**
+```json
+{
+  "name": "",
+  "age": 0,
+  "is_active": false,
+  "address": {
+    "street": "",
+    "city": "",
+    "zip_code": 0
+  },
+  "tags": [
+    ""
+  ]
 }
 ```
 

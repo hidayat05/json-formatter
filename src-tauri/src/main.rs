@@ -119,6 +119,181 @@ fn json_to_proto(input: String) -> Result<String, String> {
     Ok(proto)
 }
 
+/// Convert Protocol Buffers (proto3) schema to JSON sample
+#[tauri::command]
+fn proto_to_json(input: String) -> Result<String, String> {
+    info!("proto_to_json called - input_len: {}", input.len());
+
+    if input.trim().is_empty() {
+        warn!("proto_to_json: Input is empty");
+        return Err("Input is empty".to_string());
+    }
+
+    let messages = parse_proto_messages(&input)?;
+
+    if messages.is_empty() {
+        return Err("No message definitions found in proto file".to_string());
+    }
+
+    // Find the root message (first non-nested message or one named "Root")
+    let root_message = messages
+        .iter()
+        .find(|m| m.name == "Root")
+        .or_else(|| messages.first())
+        .ok_or("No messages found")?;
+
+    let json_value = proto_message_to_json(root_message, &messages)?;
+    let formatted = serde_json::to_string_pretty(&json_value)
+        .map_err(|e| format!("Failed to format JSON: {}", e))?;
+
+    info!("proto_to_json: Success - output_len: {}", formatted.len());
+    Ok(formatted)
+}
+
+#[derive(Debug, Clone)]
+struct ProtoMessage {
+    name: String,
+    fields: Vec<ProtoField>,
+}
+
+#[derive(Debug, Clone)]
+struct ProtoField {
+    field_type: String,
+    name: String,
+    #[allow(dead_code)]
+    number: i32,
+    is_repeated: bool,
+}
+
+fn parse_proto_messages(input: &str) -> Result<Vec<ProtoMessage>, String> {
+    let mut messages = Vec::new();
+    let lines: Vec<&str> = input.lines().collect();
+    let mut i = 0;
+
+    while i < lines.len() {
+        let line = lines[i].trim();
+
+        // Look for message definitions
+        if line.starts_with("message ") {
+            let message_name = line
+                .trim_start_matches("message ")
+                .trim_end_matches(" {")
+                .trim_end_matches('{')
+                .trim()
+                .to_string();
+
+            let mut fields = Vec::new();
+            i += 1;
+
+            // Parse fields until we hit the closing brace
+            while i < lines.len() {
+                let field_line = lines[i].trim();
+
+                if field_line == "}" {
+                    break;
+                }
+
+                if !field_line.is_empty() && !field_line.starts_with("//") && !field_line.starts_with("syntax") {
+                    if let Some(field) = parse_proto_field(field_line) {
+                        fields.push(field);
+                    }
+                }
+
+                i += 1;
+            }
+
+            messages.push(ProtoMessage {
+                name: message_name,
+                fields,
+            });
+        }
+
+        i += 1;
+    }
+
+    Ok(messages)
+}
+
+fn parse_proto_field(line: &str) -> Option<ProtoField> {
+    // Format: [repeated] type name = number;
+    let parts: Vec<&str> = line.split_whitespace().collect();
+
+    if parts.len() < 4 {
+        return None;
+    }
+
+    let mut idx = 0;
+    let is_repeated = parts[idx] == "repeated";
+    if is_repeated {
+        idx += 1;
+    }
+
+    if parts.len() < idx + 3 {
+        return None;
+    }
+
+    let field_type = parts[idx].to_string();
+    let name = parts[idx + 1].to_string();
+
+    // Parse field number (format: "= number;")
+    let number_str = parts.get(idx + 3)?
+        .trim_end_matches(';')
+        .trim();
+    let number = number_str.parse::<i32>().ok()?;
+
+    Some(ProtoField {
+        field_type,
+        name,
+        number,
+        is_repeated,
+    })
+}
+
+fn proto_message_to_json(
+    message: &ProtoMessage,
+    all_messages: &[ProtoMessage],
+) -> Result<Value, String> {
+    let mut map = serde_json::Map::new();
+
+    for field in &message.fields {
+        let value = proto_field_to_json_value(&field, all_messages)?;
+        map.insert(field.name.clone(), value);
+    }
+
+    Ok(Value::Object(map))
+}
+
+fn proto_field_to_json_value(
+    field: &ProtoField,
+    all_messages: &[ProtoMessage],
+) -> Result<Value, String> {
+    let base_value = match field.field_type.as_str() {
+        "string" => Value::String("".to_string()),
+        "int32" | "int64" | "uint32" | "uint64" | "sint32" | "sint64" | "fixed32" | "fixed64" | "sfixed32" | "sfixed64" => {
+            Value::Number(serde_json::Number::from(0))
+        }
+        "float" | "double" => {
+            Value::Number(serde_json::Number::from_f64(0.0).unwrap())
+        }
+        "bool" => Value::Bool(false),
+        "bytes" => Value::String("".to_string()),
+        _ => {
+            // Check if it's a nested message type
+            if let Some(nested_msg) = all_messages.iter().find(|m| m.name == field.field_type) {
+                proto_message_to_json(nested_msg, all_messages)?
+            } else {
+                Value::Null
+            }
+        }
+    };
+
+    if field.is_repeated {
+        Ok(Value::Array(vec![base_value]))
+    } else {
+        Ok(base_value)
+    }
+}
+
 fn generate_proto_message(
     value: &Value,
     message_name: &str,
@@ -875,6 +1050,7 @@ fn main() {
             json_to_string,
             string_to_json,
             json_to_proto,
+            proto_to_json,
             json_to_class
         ])
         .run(tauri::generate_context!())
@@ -1047,5 +1223,65 @@ mod tests {
         assert!(result.contains("interface Root"));
         assert!(result.contains("interface User"));
         assert!(result.contains("name: string;"));
+    }
+
+    #[test]
+    fn test_proto_to_json_simple() {
+        let input = r#"syntax = "proto3";
+
+message Root {
+  string name = 1;
+  int32 age = 2;
+  bool is_active = 3;
+}"#
+        .to_string();
+        let result = proto_to_json(input).unwrap();
+        assert!(result.contains("\"name\""));
+        assert!(result.contains("\"age\""));
+        assert!(result.contains("\"is_active\""));
+        assert!(result.contains("0"));
+        assert!(result.contains("false"));
+    }
+
+    #[test]
+    fn test_proto_to_json_nested() {
+        let input = r#"syntax = "proto3";
+
+message Root {
+  string name = 1;
+  User user = 2;
+}
+
+message User {
+  string name = 1;
+  int32 id = 2;
+}"#
+        .to_string();
+        let result = proto_to_json(input).unwrap();
+        let parsed: Value = serde_json::from_str(&result).unwrap();
+        assert!(parsed.get("user").is_some());
+        assert!(parsed["user"].get("name").is_some());
+        assert!(parsed["user"].get("id").is_some());
+    }
+
+    #[test]
+    fn test_proto_to_json_repeated() {
+        let input = r#"syntax = "proto3";
+
+message Root {
+  repeated string tags = 1;
+  repeated int32 numbers = 2;
+}"#
+        .to_string();
+        let result = proto_to_json(input).unwrap();
+        let parsed: Value = serde_json::from_str(&result).unwrap();
+        assert!(parsed["tags"].is_array());
+        assert!(parsed["numbers"].is_array());
+    }
+
+    #[test]
+    fn test_proto_to_json_empty_input() {
+        let result = proto_to_json("".to_string());
+        assert!(result.is_err());
     }
 }
