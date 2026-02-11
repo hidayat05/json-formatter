@@ -14,17 +14,20 @@
             box-sizing: border-box;
         }
 
+        html, body {
+            height: 100%;
+        }
+
         body {
             font-family: 'JetBrains Mono', monospace;
             font-weight: 500;
             background: #e0e5ec;
             padding: 10px;
-            height: 100vh;
             overflow: hidden;
         }
 
         .container {
-            height: 100%;
+            height: calc(100vh - 20px);
             display: flex;
             flex-direction: column;
             max-width: 100%;
@@ -46,12 +49,50 @@
             -2px -2px 4px rgba(163, 177, 198, 0.4);
         }
 
+        .top-bar {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        .tab-button {
+            padding: 12px 18px;
+            border: none;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 600;
+            background: #e0e5ec;
+            color: #5a6a7d;
+            box-shadow: 6px 6px 12px rgba(163, 177, 198, 0.6),
+            -6px -6px 12px rgba(255, 255, 255, 0.5);
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+
+        .tab-button.active {
+            background: linear-gradient(145deg, #6fa3f5, #5d8dd1);
+            color: #fff;
+            box-shadow: 6px 6px 12px rgba(93, 141, 209, 0.4),
+            -6px -6px 12px rgba(111, 163, 245, 0.4);
+        }
+
         .button-group {
             display: flex;
             gap: 10px;
             justify-content: center;
             flex-wrap: wrap;
             margin-bottom: 20px;
+        }
+
+        #converterSection,
+        #compareSection {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            gap: 12px;
         }
 
         .language-selector {
@@ -91,57 +132,66 @@
             background-size: 20px;
         }
 
-        .language-selector select:focus {
-            outline: none;
-            box-shadow: inset 6px 6px 10px rgba(163, 177, 198, 0.7),
-            inset -6px -6px 10px rgba(255, 255, 255, 0.6);
+        .hidden {
+            display: none !important;
         }
 
-        .language-selector select option {
-            background: #e0e5ec;
-            color: #5a6a7d;
-            padding: 10px 20px;
-            font-family: 'JetBrains Mono', monospace;
-            font-weight: 500;
-        }
-
-        .language-selector select option:hover {
-            background: linear-gradient(145deg, #d4dae5, #edf2f9);
-            color: #3d4a5c;
-        }
-
-        .language-selector select option:checked {
-            background: linear-gradient(145deg, #6fa3f5, #5d8dd1);
-            color: white;
-            font-weight: 600;
-        }
-
-        .language-selector input {
-            padding: 10px 20px;
-            border: none;
+        .diff-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2px;
+            height: 100%;
+            padding: 6px;
             border-radius: 10px;
-            font-size: 14px;
-            font-family: 'JetBrains Mono', monospace;
-            font-weight: 500;
-            width: 200px;
-            height: 42px;
-            box-sizing: border-box;
             background: #e0e5ec;
             box-shadow: inset 4px 4px 8px rgba(163, 177, 198, 0.6),
             inset -4px -4px 8px rgba(255, 255, 255, 0.5);
+            overflow: auto;
+            font-size: 13px;
+            line-height: 1.4;
+            margin-top: 10px;
+        }
+
+        .diff-header {
+            position: sticky;
+            top: 0;
+            z-index: 1;
+            background: linear-gradient(145deg, #d4dae5, #edf2f9);
+            padding: 8px;
+            font-weight: 700;
+            color: #5a6a7d;
+            border-radius: 8px;
+        }
+
+        .diff-row {
+            display: contents;
+        }
+
+        .diff-cell {
+            padding: 6px 8px;
+            white-space: pre-wrap;
+            border-radius: 6px;
+            background: #e0e5ec;
             color: #5a6a7d;
         }
 
-        .language-selector input:focus {
-            outline: none;
-            box-shadow: inset 6px 6px 10px rgba(163, 177, 198, 0.7),
-            inset -6px -6px 10px rgba(255, 255, 255, 0.6);
+        .diff-added .diff-cell {
+            background: #d4edda;
+            color: #2e7d32;
         }
 
-        input::placeholder,
-        textarea::placeholder {
-            color: #a3b1c6;
-            opacity: 0.7;
+        .diff-removed .diff-cell {
+            background: #f8d7da;
+            color: #c62828;
+        }
+
+        .diff-changed .diff-cell {
+            background: #fff3cd;
+            color: #8d6e00;
+        }
+
+        .diff-empty {
+            opacity: 0.5;
         }
 
         button {
@@ -230,6 +280,17 @@
             gap: 15px;
             flex: 1;
             min-height: 0;
+            height: 100%;
+        }
+
+        /* Keep compare inputs and diff from overlapping */
+        #compareSection .editor-container {
+            flex: 1 1 50%;
+        }
+
+        #compareSection .diff-panel {
+            flex: 1 1 50%;
+            min-height: 0;
         }
 
         .editor-section {
@@ -284,6 +345,7 @@
             box-shadow: inset 4px 4px 8px rgba(163, 177, 198, 0.6),
             inset -4px -4px 8px rgba(255, 255, 255, 0.5);
             color: #5a6a7d;
+            min-height: 0;
         }
 
         textarea:focus {
@@ -309,6 +371,8 @@
             background: #e0e5ec;
             box-shadow: inset 4px 4px 8px rgba(163, 177, 198, 0.6),
             inset -4px -4px 8px rgba(255, 255, 255, 0.5);
+            color: #5a6a7d;
+            opacity: 0.7;
         }
 
         .status-message.success {
@@ -334,51 +398,91 @@
 <div class="container">
     <h1>JSON Formatter Tool</h1>
 
-    <div class="button-group">
-        <button class="primary" id="minifyBtn">Minify JSON</button>
-        <button class="primary" id="formatBtn">Format JSON</button>
-        <button class="secondary" id="jsonToStringBtn">JSON → String</button>
-        <button class="secondary" id="stringToJsonBtn">String → JSON</button>
-        <button class="secondary" id="jsonToProtoBtn">JSON → Proto</button>
-        <button class="secondary" id="protoToJsonBtn">Proto → JSON</button>
+    <div class="top-bar">
+        <button id="converterTabBtn" class="tab-button active">JSON Converter</button>
+        <button id="compareTabBtn" class="tab-button">JSON Compare</button>
     </div>
 
-    <div class="language-selector">
-        <label for="languageSelect">Convert to Class:</label>
-        <select id="languageSelect">
-            <option value="typescript">TypeScript</option>
-            <option value="javascript">JavaScript</option>
-            <option value="python">Python</option>
-            <option value="rust">Rust</option>
-            <option value="java">Java</option>
-            <option value="csharp">C#</option>
-            <option value="go">Go</option>
-            <option value="kotlin">Kotlin</option>
-            <option value="swift">Swift</option>
-        </select>
-        <input type="text" id="classNameInputText" placeholder="Class name (optional)"/>
-        <button class="primary" id="jsonToClassBtn">Generate Class</button>
-    </div>
-
-    <div class="button-group">
-        <button class="danger" id="clearBtn">Clear All</button>
-    </div>
-
-    <div class="editor-container">
-        <div class="editor-section">
-            <div class="editor-header">
-                <span class="editor-label">Input</span>
-                <button class="copy-button" id="copyInputBtn">📋 Copy</button>
-            </div>
-            <textarea id="inputText" placeholder="Enter or paste JSON here..."></textarea>
+    <div id="converterSection">
+        <div class="button-group">
+            <button class="primary" id="minifyBtn">Minify JSON</button>
+            <button class="primary" id="formatBtn">Format JSON</button>
+            <button class="secondary" id="jsonToStringBtn">JSON → String</button>
+            <button class="secondary" id="stringToJsonBtn">String → JSON</button>
+            <button class="secondary" id="jsonToProtoBtn">JSON → Proto</button>
+            <button class="secondary" id="protoToJsonBtn">Proto → JSON</button>
         </div>
 
-        <div class="editor-section">
-            <div class="editor-header">
-                <span class="editor-label">Output</span>
-                <button class="copy-button" id="copyOutputBtn">📋 Copy</button>
+        <div class="language-selector">
+            <label for="languageSelect">Convert to Class:</label>
+            <select id="languageSelect">
+                <option value="typescript">TypeScript</option>
+                <option value="javascript">JavaScript</option>
+                <option value="python">Python</option>
+                <option value="rust">Rust</option>
+                <option value="java">Java</option>
+                <option value="csharp">C#</option>
+                <option value="go">Go</option>
+                <option value="kotlin">Kotlin</option>
+                <option value="swift">Swift</option>
+            </select>
+            <input type="text" id="classNameInputText" placeholder="Class name (optional)"/>
+            <button class="primary" id="jsonToClassBtn">Generate Class</button>
+        </div>
+
+        <div class="button-group">
+            <button class="danger" id="clearBtn">Clear All</button>
+        </div>
+
+        <div class="editor-container">
+            <div class="editor-section">
+                <div class="editor-header">
+                    <span class="editor-label">Input</span>
+                    <button class="copy-button" id="copyInputBtn">📋 Copy</button>
+                </div>
+                <textarea id="inputText" placeholder="Enter or paste JSON here..."></textarea>
             </div>
-            <textarea id="outputText" class="output" readonly></textarea>
+
+            <div class="editor-section">
+                <div class="editor-header">
+                    <span class="editor-label">Output</span>
+                    <button class="copy-button" id="copyOutputBtn">📋 Copy</button>
+                </div>
+                <textarea id="outputText" class="output" readonly></textarea>
+            </div>
+        </div>
+    </div>
+
+    <div id="compareSection" class="hidden">
+        <div class="button-group">
+            <button class="primary" id="beautifyLeftBtn">Beautify Left</button>
+            <button class="primary" id="beautifyRightBtn">Beautify Right</button>
+            <button class="secondary" id="compareBtn">Compare</button>
+            <button class="secondary" id="openDiffWindowBtn">Open Diff in New Tab</button>
+            <button class="secondary" id="copyDiffBtn">Copy Diff Text</button>
+        </div>
+
+        <div class="editor-container">
+            <div class="editor-section">
+                <div class="editor-header">
+                    <span class="editor-label">Left JSON</span>
+                    <button class="copy-button" id="copyLeftCompareBtn">📋 Copy</button>
+                </div>
+                <textarea id="compareLeft" placeholder="Enter or paste left JSON..."></textarea>
+            </div>
+
+            <div class="editor-section">
+                <div class="editor-header">
+                    <span class="editor-label">Right JSON</span>
+                    <button class="copy-button" id="copyRightCompareBtn">📋 Copy</button>
+                </div>
+                <textarea id="compareRight" placeholder="Enter or paste right JSON..."></textarea>
+            </div>
+        </div>
+
+        <div class="diff-panel" id="diffContainer">
+            <div class="diff-header">Left</div>
+            <div class="diff-header">Right</div>
         </div>
     </div>
 
