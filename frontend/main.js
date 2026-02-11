@@ -171,21 +171,6 @@ function showStatus(message, isError = false) {
     }, 3000);
 }
 
-function openDiffWindow() {
-    if (!lastDiffHtml) {
-        showStatus('No diff to open', true);
-        return;
-    }
-    const doc = buildDiffDocument(lastDiffHtml);
-    const win = window.open('', '_blank');
-    if (!win) {
-        showStatus('Popup blocked: allow popups to view diff', true);
-        return;
-    }
-    win.document.write(doc);
-    win.document.close();
-}
-
 function renderDiffHtml(html) {
     if (diffContainer) {
         diffContainer.innerHTML = html;
@@ -416,7 +401,6 @@ document.getElementById('copyDiffBtn').addEventListener('click', handleCopyDiff)
 document.getElementById('beautifyLeftBtn').addEventListener('click', () => handleBeautifyCompare('left'));
 document.getElementById('beautifyRightBtn').addEventListener('click', () => handleBeautifyCompare('right'));
 document.getElementById('compareBtn').addEventListener('click', handleCompare);
-document.getElementById('openDiffWindowBtn').addEventListener('click', openDiffWindow);
 converterTabBtn.addEventListener('click', () => setActiveTab('converter'));
 compareTabBtn.addEventListener('click', () => setActiveTab('compare'));
 

@@ -132,6 +132,35 @@
             background-size: 20px;
         }
 
+        #classNameInputText {
+            padding: 10px 14px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            width: 220px;
+            height: 42px;
+            background: #e0e5ec;
+            color: #5a6a7d;
+            box-shadow: inset 4px 4px 8px rgba(163, 177, 198, 0.6),
+            inset -4px -4px 8px rgba(255, 255, 255, 0.5);
+            transition: box-shadow 0.2s ease, transform 0.2s ease;
+        }
+
+        #classNameInputText:focus {
+            outline: none;
+            box-shadow: inset 6px 6px 12px rgba(163, 177, 198, 0.65),
+            inset -6px -6px 12px rgba(255, 255, 255, 0.6),
+            4px 4px 10px rgba(163, 177, 198, 0.35),
+            -4px -4px 10px rgba(255, 255, 255, 0.6);
+            transform: translateY(-1px);
+        }
+
+        #classNameInputText::placeholder {
+            color: #8a96a8;
+        }
+
         .hidden {
             display: none !important;
         }
@@ -458,7 +487,6 @@
             <button class="primary" id="beautifyLeftBtn">Beautify Left</button>
             <button class="primary" id="beautifyRightBtn">Beautify Right</button>
             <button class="secondary" id="compareBtn">Compare</button>
-            <button class="secondary" id="openDiffWindowBtn">Open Diff in New Tab</button>
             <button class="secondary" id="copyDiffBtn">Copy Diff Text</button>
         </div>
 
@@ -492,4 +520,3 @@
 <script type="module" src="/main.js"></script>
 </body>
 </html>
-
