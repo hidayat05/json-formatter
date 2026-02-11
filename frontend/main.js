@@ -18,6 +18,7 @@ const diffContainer = document.getElementById('diffContainer');
 
 let lastDiffText = '';
 let lastDiffHtml = '';
+const EMPTY_DIFF_HTML = '<div class="diff-header">Left</div><div class="diff-header">Right</div>';
 
 function escapeHtml(str) {
     return str
@@ -99,7 +100,7 @@ function buildLineDiff(leftLines, rightLines) {
 
 function buildDiffHtml(entries) {
     if (!entries.length) {
-        return '<div class="diff-header">Left</div><div class="diff-header">Right</div>';
+        return EMPTY_DIFF_HTML;
     }
 
     const rows = entries.map((entry) => {
@@ -128,31 +129,6 @@ function serializeDiff(entries) {
                 return '';
         }
     }).join('\n');
-}
-
-function buildDiffDocument(htmlContent) {
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>JSON Diff</title>
-<style>
-    body { margin: 0; padding: 16px; font-family: 'JetBrains Mono', monospace; background: #e0e5ec; color: #5a6a7d; }
-    .diff-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; height: 100%; padding: 6px; border-radius: 10px; background: #e0e5ec; box-shadow: inset 4px 4px 8px rgba(163, 177, 198, 0.6), inset -4px -4px 8px rgba(255, 255, 255, 0.5); overflow: auto; font-size: 13px; line-height: 1.4; }
-    .diff-header { position: sticky; top: 0; z-index: 1; background: linear-gradient(145deg, #d4dae5, #edf2f9); padding: 8px; font-weight: 700; color: #5a6a7d; border-radius: 8px; }
-    .diff-row { display: contents; }
-    .diff-cell { padding: 6px 8px; white-space: pre-wrap; border-radius: 6px; background: #e0e5ec; color: #5a6a7d; }
-    .diff-added .diff-cell { background: #d4edda; color: #2e7d32; }
-    .diff-removed .diff-cell { background: #f8d7da; color: #c62828; }
-    .diff-changed .diff-cell { background: #fff3cd; color: #8d6e00; }
-    .diff-empty { opacity: 0.5; }
-</style>
-</head>
-<body>
-<div class="diff-panel">${htmlContent}</div>
-</body>
-</html>`;
 }
 
 function setActiveTab(tab) {
@@ -207,7 +183,7 @@ function handleCompare() {
     } catch (error) {
         lastDiffText = '';
         lastDiffHtml = '';
-        renderDiffHtml('<div class="diff-header">Left</div><div class="diff-header">Right</div>');
+        renderDiffHtml(EMPTY_DIFF_HTML);
         showStatus(`Error: ${error}`, true);
     }
 }
@@ -301,17 +277,20 @@ async function handleJsonToClass() {
     }
 }
 
-function handleClear() {
-    inputText.value = '';
-    outputText.value = '';
-    classNameInput.value = '';
-    statusMessage.className = 'status-message hidden';
-
+function handleCompareClear() {
     compareLeft.value = '';
     compareRight.value = '';
     lastDiffText = '';
     lastDiffHtml = '';
-    renderDiffHtml('<div class="diff-header">Left</div><div class="diff-header">Right</div>');
+    renderDiffHtml(EMPTY_DIFF_HTML);
+    statusMessage.className = 'status-message hidden';
+}
+
+function handleClear() {
+    inputText.value = '';
+    outputText.value = '';
+    classNameInput.value = '';
+    handleCompareClear();
 }
 
 async function handleCopyInput() {
@@ -393,6 +372,7 @@ document.getElementById('jsonToProtoBtn').addEventListener('click', handleJsonTo
 document.getElementById('protoToJsonBtn').addEventListener('click', handleProtoToJson);
 document.getElementById('jsonToClassBtn').addEventListener('click', handleJsonToClass);
 document.getElementById('clearBtn').addEventListener('click', handleClear);
+document.getElementById('clearCompareBtn').addEventListener('click', handleCompareClear);
 document.getElementById('copyInputBtn').addEventListener('click', handleCopyInput);
 document.getElementById('copyOutputBtn').addEventListener('click', handleCopyOutput);
 document.getElementById('copyLeftCompareBtn').addEventListener('click', () => handleCopyCompare('left'));
@@ -421,5 +401,5 @@ document.addEventListener('keydown', (e) => {
 });
 
 setActiveTab('converter');
-renderDiffHtml('<div class="diff-header">Left</div><div class="diff-header">Right</div>');
+renderDiffHtml(EMPTY_DIFF_HTML);
 
