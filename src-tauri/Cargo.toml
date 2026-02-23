@@ -1,6 +1,6 @@
 [package]
 name = "json-formatter"
-version = "1.0.0"
+version = "1.1.0"
 description = "A JSON formatter and converter tool"
 authors = ["maskipli.id@gmail.com"]
 edition = "2024"
@@ -19,4 +19,3 @@ log = "0.4"
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
-
