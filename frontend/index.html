@@ -3,7 +3,7 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>JSON Formatter</title>
+        <title>Palugada</title>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
@@ -15,7 +15,7 @@
     </head>
     <body>
         <div class="container">
-            <h1>JSON Formatter Tool</h1>
+            <h1>Palugada</h1>
 
             <div class="top-bar">
                 <button id="converterTabBtn" class="tab-button active">
@@ -26,6 +26,9 @@
                 </button>
                 <button id="mermaidTabBtn" class="tab-button">
                     Mermaid Editor
+                </button>
+                <button id="imageResizerTabBtn" class="tab-button">
+                    Image Resizer
                 </button>
             </div>
 
@@ -239,6 +242,151 @@ graph TD
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <div id="imageResizerSection" class="hidden">
+                <div class="button-group">
+                    <button class="primary" id="selectImageBtn">
+                        📁 Select Image
+                    </button>
+                    <button class="secondary" id="convertToPngBtn" disabled>
+                        🖼️ Convert to PNG
+                    </button>
+                    <button class="secondary" id="removeBackgroundBtn" disabled>
+                        ✂️ Remove Background
+                    </button>
+                    <button class="success" id="downloadResizedBtn" disabled>
+                        📥 Download Resized Image
+                    </button>
+                    <button class="danger" id="clearImageBtn">Clear</button>
+                </div>
+
+                <div class="resize-controls">
+                    <div class="resize-control-group">
+                        <label for="resizeMode">Resize Mode:</label>
+                        <select id="resizeMode">
+                            <option value="percentage">By Percentage</option>
+                            <option value="dimensions">By Dimensions</option>
+                            <option value="quality">Quality Only</option>
+                        </select>
+                    </div>
+
+                    <div class="resize-control-group" id="percentageControls">
+                        <label for="resizePercentage">Scale:</label>
+                        <input
+                            type="range"
+                            id="resizePercentage"
+                            min="10"
+                            max="200"
+                            value="100"
+                        />
+                        <span id="percentageValue">100%</span>
+                    </div>
+
+                    <div
+                        class="resize-control-group hidden"
+                        id="dimensionControls"
+                    >
+                        <label for="resizeWidth">Width:</label>
+                        <input
+                            type="number"
+                            id="resizeWidth"
+                            placeholder="Width"
+                            min="1"
+                        />
+                        <label for="resizeHeight">Height:</label>
+                        <input
+                            type="number"
+                            id="resizeHeight"
+                            placeholder="Height"
+                            min="1"
+                        />
+                        <label>
+                            <input
+                                type="checkbox"
+                                id="maintainAspectRatio"
+                                checked
+                            />
+                            Maintain Aspect Ratio
+                        </label>
+                    </div>
+
+                    <div class="resize-control-group">
+                        <label for="imageQuality">Quality:</label>
+                        <input
+                            type="range"
+                            id="imageQuality"
+                            min="10"
+                            max="100"
+                            value="90"
+                        />
+                        <span id="qualityValue">90%</span>
+                    </div>
+
+                    <div class="resize-control-group">
+                        <label for="outputFormat">Format:</label>
+                        <select id="outputFormat">
+                            <option value="jpeg">JPEG</option>
+                            <option value="png">PNG</option>
+                            <option value="webp">WebP</option>
+                        </select>
+                    </div>
+
+                    <div class="resize-control-group">
+                        <label for="bgTolerance">BG Tolerance:</label>
+                        <input
+                            type="range"
+                            id="bgTolerance"
+                            min="5"
+                            max="100"
+                            value="30"
+                        />
+                        <span id="toleranceValue">30</span>
+                    </div>
+
+                    <button class="primary" id="applyResizeBtn" disabled>
+                        🔄 Apply Changes
+                    </button>
+                </div>
+
+                <div class="image-resizer-container">
+                    <div class="image-section">
+                        <div class="editor-header">
+                            <span class="editor-label">Original Image</span>
+                            <span
+                                class="image-info"
+                                id="originalImageInfo"
+                            ></span>
+                        </div>
+                        <div class="image-preview" id="originalImagePreview">
+                            <div class="image-placeholder">
+                                Click "Select Image" to load an image
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="image-section">
+                        <div class="editor-header">
+                            <span class="editor-label">Resized Image</span>
+                            <span
+                                class="image-info"
+                                id="resizedImageInfo"
+                            ></span>
+                        </div>
+                        <div class="image-preview" id="resizedImagePreview">
+                            <div class="image-placeholder">
+                                Resized image will appear here
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <input
+                    type="file"
+                    id="imageFileInput"
+                    accept="image/*"
+                    style="display: none"
+                />
             </div>
 
             <div class="status-message hidden" id="statusMessage"></div>

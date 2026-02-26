@@ -10,9 +10,11 @@ const classNameInput = document.getElementById("classNameInputText");
 const converterTabBtn = document.getElementById("converterTabBtn");
 const compareTabBtn = document.getElementById("compareTabBtn");
 const mermaidTabBtn = document.getElementById("mermaidTabBtn");
+const imageResizerTabBtn = document.getElementById("imageResizerTabBtn");
 const converterSection = document.getElementById("converterSection");
 const compareSection = document.getElementById("compareSection");
 const mermaidSection = document.getElementById("mermaidSection");
+const imageResizerSection = document.getElementById("imageResizerSection");
 
 const compareLeft = document.getElementById("compareLeft");
 const compareRight = document.getElementById("compareRight");
@@ -46,6 +48,38 @@ let lastDiffText = "";
 let lastDiffHtml = "";
 const EMPTY_DIFF_HTML =
   '<div class="diff-header">Left</div><div class="diff-header">Right</div>';
+
+// Image Resizer elements
+const imageFileInput = document.getElementById("imageFileInput");
+const selectImageBtn = document.getElementById("selectImageBtn");
+const convertToPngBtn = document.getElementById("convertToPngBtn");
+const removeBackgroundBtn = document.getElementById("removeBackgroundBtn");
+const downloadResizedBtn = document.getElementById("downloadResizedBtn");
+const clearImageBtn = document.getElementById("clearImageBtn");
+const applyResizeBtn = document.getElementById("applyResizeBtn");
+const resizeMode = document.getElementById("resizeMode");
+const resizePercentage = document.getElementById("resizePercentage");
+const percentageValue = document.getElementById("percentageValue");
+const percentageControls = document.getElementById("percentageControls");
+const dimensionControls = document.getElementById("dimensionControls");
+const resizeWidth = document.getElementById("resizeWidth");
+const resizeHeight = document.getElementById("resizeHeight");
+const maintainAspectRatio = document.getElementById("maintainAspectRatio");
+const imageQuality = document.getElementById("imageQuality");
+const qualityValue = document.getElementById("qualityValue");
+const outputFormat = document.getElementById("outputFormat");
+const originalImagePreview = document.getElementById("originalImagePreview");
+const resizedImagePreview = document.getElementById("resizedImagePreview");
+const originalImageInfo = document.getElementById("originalImageInfo");
+const resizedImageInfo = document.getElementById("resizedImageInfo");
+const bgTolerance = document.getElementById("bgTolerance");
+const toleranceValue = document.getElementById("toleranceValue");
+
+// Image Resizer state
+let originalImage = null;
+let originalImageData = null;
+let resizedImageData = null;
+let isRemovingBackground = false;
 
 // Initialize Mermaid
 mermaid.initialize({
@@ -183,14 +217,17 @@ function setActiveTab(tab) {
   const isConverter = tab === "converter";
   const isCompare = tab === "compare";
   const isMermaid = tab === "mermaid";
+  const isImageResizer = tab === "imageResizer";
 
   converterSection.classList.toggle("hidden", !isConverter);
   compareSection.classList.toggle("hidden", !isCompare);
   mermaidSection.classList.toggle("hidden", !isMermaid);
+  imageResizerSection.classList.toggle("hidden", !isImageResizer);
 
   converterTabBtn.classList.toggle("active", isConverter);
   compareTabBtn.classList.toggle("active", isCompare);
   mermaidTabBtn.classList.toggle("active", isMermaid);
+  imageResizerTabBtn.classList.toggle("active", isImageResizer);
 }
 
 function showStatus(message, isError = false) {
@@ -601,7 +638,313 @@ function handleClearMermaid() {
   panX = 0;
   panY = 0;
   zoomLevelDisplay.textContent = "100%";
-  showStatus("✓ Mermaid editor cleared");
+  showStatus("Mermaid editor cleared!");
+}
+
+// Image Resizer Functions
+function handleSelectImage() {
+  imageFileInput.click();
+}
+
+function handleImageSelected(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+
+  if (!file.type.startsWith("image/")) {
+    showStatus("Please select a valid image file", true);
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      originalImage = img;
+      originalImageData = e.target.result;
+
+      // Display original image with scrollable container
+      originalImagePreview.classList.add("has-image");
+      originalImagePreview.innerHTML = `<div class="image-preview-content"><img src="${originalImageData}" alt="Original Image"></div>`;
+      originalImageInfo.textContent = `${img.width} × ${img.height} px | ${formatFileSize(file.size)}`;
+
+      // Set dimension inputs to original size
+      resizeWidth.value = img.width;
+      resizeHeight.value = img.height;
+
+      // Enable buttons
+      applyResizeBtn.disabled = false;
+      convertToPngBtn.disabled = false;
+      removeBackgroundBtn.disabled = false;
+
+      // Clear resized preview
+      resizedImagePreview.classList.remove("has-image", "transparent-bg");
+      resizedImagePreview.innerHTML =
+        '<div class="image-placeholder">Click "Apply Changes" to resize</div>';
+      resizedImageInfo.textContent = "";
+      downloadResizedBtn.disabled = true;
+      resizedImageData = null;
+
+      showStatus("Image loaded successfully!");
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function formatFileSize(bytes) {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
+function handleResizeModeChange() {
+  const mode = resizeMode.value;
+  percentageControls.classList.toggle("hidden", mode === "dimensions");
+  dimensionControls.classList.toggle("hidden", mode !== "dimensions");
+}
+
+function handlePercentageChange() {
+  percentageValue.textContent = resizePercentage.value + "%";
+  if (originalImage && resizeMode.value === "percentage") {
+    const scale = resizePercentage.value / 100;
+    resizeWidth.value = Math.round(originalImage.width * scale);
+    resizeHeight.value = Math.round(originalImage.height * scale);
+  }
+}
+
+function handleQualityChange() {
+  qualityValue.textContent = imageQuality.value + "%";
+}
+
+function handleWidthChange() {
+  if (maintainAspectRatio.checked && originalImage) {
+    const aspectRatio = originalImage.height / originalImage.width;
+    resizeHeight.value = Math.round(resizeWidth.value * aspectRatio);
+  }
+}
+
+function handleHeightChange() {
+  if (maintainAspectRatio.checked && originalImage) {
+    const aspectRatio = originalImage.width / originalImage.height;
+    resizeWidth.value = Math.round(resizeHeight.value * aspectRatio);
+  }
+}
+
+function handleApplyResize() {
+  if (!originalImage) {
+    showStatus("Please select an image first", true);
+    return;
+  }
+
+  let newWidth, newHeight;
+
+  if (resizeMode.value === "percentage") {
+    const scale = resizePercentage.value / 100;
+    newWidth = Math.round(originalImage.width * scale);
+    newHeight = Math.round(originalImage.height * scale);
+  } else if (resizeMode.value === "dimensions") {
+    newWidth = parseInt(resizeWidth.value) || originalImage.width;
+    newHeight = parseInt(resizeHeight.value) || originalImage.height;
+  } else {
+    // Quality only mode - keep original dimensions
+    newWidth = originalImage.width;
+    newHeight = originalImage.height;
+  }
+
+  // Create canvas for resizing
+  const canvas = document.createElement("canvas");
+  canvas.width = newWidth;
+  canvas.height = newHeight;
+
+  const ctx = canvas.getContext("2d");
+
+  // Use high-quality image smoothing
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
+
+  // Draw resized image
+  ctx.drawImage(originalImage, 0, 0, newWidth, newHeight);
+
+  // Get output format and quality
+  const format = outputFormat.value;
+  const quality = imageQuality.value / 100;
+
+  let mimeType;
+  switch (format) {
+    case "png":
+      mimeType = "image/png";
+      break;
+    case "webp":
+      mimeType = "image/webp";
+      break;
+    default:
+      mimeType = "image/jpeg";
+  }
+
+  // Convert to data URL
+  resizedImageData = canvas.toDataURL(mimeType, quality);
+
+  // Display resized image with scrollable container
+  resizedImagePreview.classList.add("has-image");
+  resizedImagePreview.classList.remove("transparent-bg");
+  resizedImagePreview.innerHTML = `<div class="image-preview-content"><img src="${resizedImageData}" alt="Resized Image"></div>`;
+
+  // Calculate approximate file size
+  const base64Length =
+    resizedImageData.length - resizedImageData.indexOf(",") - 1;
+  const approximateSize = Math.round((base64Length * 3) / 4);
+
+  resizedImageInfo.textContent = `${newWidth} × ${newHeight} px | ~${formatFileSize(approximateSize)}`;
+
+  downloadResizedBtn.disabled = false;
+  showStatus("Image resized successfully!");
+}
+
+function handleDownloadResized() {
+  if (!resizedImageData) {
+    showStatus("No resized image to download", true);
+    return;
+  }
+
+  const format = outputFormat.value;
+  const extension = format === "jpeg" ? "jpg" : format;
+
+  const link = document.createElement("a");
+  link.download = `resized-image.${extension}`;
+  link.href = resizedImageData;
+  link.click();
+
+  showStatus("Image downloaded!");
+}
+
+function handleConvertToPng() {
+  if (!originalImage) {
+    showStatus("Please select an image first", true);
+    return;
+  }
+
+  // Create canvas with original dimensions
+  const canvas = document.createElement("canvas");
+  canvas.width = originalImage.width;
+  canvas.height = originalImage.height;
+
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(originalImage, 0, 0);
+
+  // Convert to PNG (lossless)
+  resizedImageData = canvas.toDataURL("image/png");
+
+  // Display converted image with scrollable container
+  resizedImagePreview.classList.add("has-image");
+  resizedImagePreview.classList.remove("transparent-bg");
+  resizedImagePreview.innerHTML = `<div class="image-preview-content"><img src="${resizedImageData}" alt="PNG Image"></div>`;
+
+  // Calculate approximate file size
+  const base64Length =
+    resizedImageData.length - resizedImageData.indexOf(",") - 1;
+  const approximateSize = Math.round((base64Length * 3) / 4);
+
+  resizedImageInfo.textContent = `${originalImage.width} × ${originalImage.height} px | PNG | ~${formatFileSize(approximateSize)}`;
+
+  // Set output format to PNG for download
+  outputFormat.value = "png";
+
+  downloadResizedBtn.disabled = false;
+  showStatus("Image converted to PNG successfully!");
+}
+
+async function handleRemoveBackground() {
+  if (!originalImage) {
+    showStatus("Please select an image first", true);
+    return;
+  }
+
+  if (isRemovingBackground) {
+    showStatus("Background removal already in progress...", true);
+    return;
+  }
+
+  isRemovingBackground = true;
+  removeBackgroundBtn.disabled = true;
+  removeBackgroundBtn.textContent = "⏳ Processing...";
+
+  resizedImagePreview.classList.remove("has-image", "transparent-bg");
+  resizedImagePreview.innerHTML =
+    '<div class="image-placeholder">Removing background... This may take a moment.</div>';
+
+  try {
+    // Get tolerance from slider
+    const tolerance = parseInt(bgTolerance.value) || 30;
+
+    // Call Rust backend for background removal
+    const result = await invoke("remove_background", {
+      imageData: originalImageData,
+      tolerance: tolerance,
+    });
+
+    resizedImageData = result;
+
+    // Display result with transparent background indicator
+    resizedImagePreview.classList.add("has-image", "transparent-bg");
+    resizedImagePreview.innerHTML = `<div class="image-preview-content"><img src="${resizedImageData}" alt="Background Removed"></div>`;
+
+    // Calculate approximate file size
+    const base64Length =
+      resizedImageData.length - resizedImageData.indexOf(",") - 1;
+    const approximateSize = Math.round((base64Length * 3) / 4);
+
+    resizedImageInfo.textContent = `${originalImage.width} × ${originalImage.height} px | PNG | ~${formatFileSize(approximateSize)}`;
+
+    // Set output format to PNG (required for transparency)
+    outputFormat.value = "png";
+
+    downloadResizedBtn.disabled = false;
+    showStatus("Background removed successfully!");
+  } catch (error) {
+    console.error("Background removal error:", error);
+    resizedImagePreview.innerHTML =
+      '<div class="image-placeholder">Failed to remove background. Please try again.</div>';
+    showStatus(`Error: ${error || "Failed to remove background"}`, true);
+  } finally {
+    isRemovingBackground = false;
+    removeBackgroundBtn.disabled = false;
+    removeBackgroundBtn.textContent = "✂️ Remove Background";
+  }
+}
+
+function handleClearImage() {
+  originalImage = null;
+  originalImageData = null;
+  resizedImageData = null;
+
+  originalImagePreview.classList.remove("has-image", "transparent-bg");
+  originalImagePreview.innerHTML =
+    '<div class="image-placeholder">Click "Select Image" to load an image</div>';
+
+  resizedImagePreview.classList.remove("has-image", "transparent-bg");
+  resizedImagePreview.innerHTML =
+    '<div class="image-placeholder">Resized image will appear here</div>';
+
+  originalImageInfo.textContent = "";
+  resizedImageInfo.textContent = "";
+
+  applyResizeBtn.disabled = true;
+  downloadResizedBtn.disabled = true;
+  convertToPngBtn.disabled = true;
+  removeBackgroundBtn.disabled = true;
+
+  resizePercentage.value = 100;
+  percentageValue.textContent = "100%";
+  imageQuality.value = 90;
+  qualityValue.textContent = "90%";
+  bgTolerance.value = 30;
+  toleranceValue.textContent = "30";
+  resizeWidth.value = "";
+  resizeHeight.value = "";
+
+  imageFileInput.value = "";
+
+  showStatus("Image resizer cleared!");
 }
 
 async function handleCopyMermaid() {
@@ -669,6 +1012,9 @@ document.getElementById("compareBtn").addEventListener("click", handleCompare);
 converterTabBtn.addEventListener("click", () => setActiveTab("converter"));
 compareTabBtn.addEventListener("click", () => setActiveTab("compare"));
 mermaidTabBtn.addEventListener("click", () => setActiveTab("mermaid"));
+imageResizerTabBtn.addEventListener("click", () =>
+  setActiveTab("imageResizer"),
+);
 
 // Mermaid event listeners
 document
@@ -694,6 +1040,23 @@ dragToggleBtn.addEventListener("click", toggleDragMode);
 mermaidPreview.addEventListener("mousedown", handleDragStart);
 document.addEventListener("mousemove", handleDragMove);
 document.addEventListener("mouseup", handleDragEnd);
+
+// Image Resizer event listeners
+selectImageBtn.addEventListener("click", handleSelectImage);
+imageFileInput.addEventListener("change", handleImageSelected);
+convertToPngBtn.addEventListener("click", handleConvertToPng);
+removeBackgroundBtn.addEventListener("click", handleRemoveBackground);
+downloadResizedBtn.addEventListener("click", handleDownloadResized);
+clearImageBtn.addEventListener("click", handleClearImage);
+applyResizeBtn.addEventListener("click", handleApplyResize);
+resizeMode.addEventListener("change", handleResizeModeChange);
+resizePercentage.addEventListener("input", handlePercentageChange);
+imageQuality.addEventListener("input", handleQualityChange);
+resizeWidth.addEventListener("input", handleWidthChange);
+resizeHeight.addEventListener("input", handleHeightChange);
+bgTolerance.addEventListener("input", () => {
+  toleranceValue.textContent = bgTolerance.value;
+});
 
 // Mouse wheel zoom on preview
 mermaidPreview.addEventListener("wheel", (e) => {
