@@ -1058,6 +1058,47 @@ bgTolerance.addEventListener("input", () => {
   toleranceValue.textContent = bgTolerance.value;
 });
 
+// Tab key support for Mermaid editor
+mermaidInput.addEventListener("keydown", (e) => {
+  if (e.key === "Tab") {
+    e.preventDefault();
+    const start = mermaidInput.selectionStart;
+    const end = mermaidInput.selectionEnd;
+
+    if (e.shiftKey) {
+      // Shift+Tab: Remove indentation
+      const lineStart = mermaidInput.value.lastIndexOf("\n", start - 1) + 1;
+      const lineText = mermaidInput.value.substring(lineStart, start);
+
+      // Check if line starts with spaces
+      const spacesToRemove = lineText.match(/^( {1,2})/);
+      if (spacesToRemove) {
+        const removeCount = spacesToRemove[1].length;
+        mermaidInput.value =
+          mermaidInput.value.substring(0, lineStart) +
+          mermaidInput.value.substring(lineStart + removeCount);
+
+        // Adjust cursor position
+        mermaidInput.selectionStart = mermaidInput.selectionEnd = Math.max(
+          lineStart,
+          start - removeCount,
+        );
+      }
+    } else {
+      // Tab: Insert indentation (2 spaces)
+      const spaces = "  ";
+      mermaidInput.value =
+        mermaidInput.value.substring(0, start) +
+        spaces +
+        mermaidInput.value.substring(end);
+
+      // Move cursor after the inserted spaces
+      mermaidInput.selectionStart = mermaidInput.selectionEnd =
+        start + spaces.length;
+    }
+  }
+});
+
 // Mouse wheel zoom on preview
 mermaidPreview.addEventListener("wheel", (e) => {
   if (e.ctrlKey || e.metaKey) {
