@@ -4,9 +4,123 @@
 use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use image::{GenericImageView, ImageFormat, Rgba};
 use log::{debug, error, info, warn};
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::VecDeque;
 use std::io::Cursor;
+
+#[derive(Serialize, Deserialize)]
+struct ValidationError {
+    message: String,
+    line: usize,
+    column: usize,
+}
+
+#[derive(Serialize, Deserialize)]
+struct ValidationResult {
+    valid: bool,
+    error: Option<ValidationError>,
+    suggestion: Option<String>,
+}
+
+fn suggest_json_fix(input: &str, err_message: &str) -> Option<String> {
+    if err_message.contains("trailing comma") {
+        return Some(
+            "Remove the trailing comma. JSON does not allow trailing commas after the last item."
+                .to_string(),
+        );
+    }
+
+    if input.contains('\'') {
+        return Some(
+            "JSON strings must use double quotes (\"), not single quotes (').".to_string(),
+        );
+    }
+
+    if err_message.contains("EOF") || err_message.contains("end of input") {
+        let open_braces = input.chars().filter(|&c| c == '{').count();
+        let close_braces = input.chars().filter(|&c| c == '}').count();
+        let open_brackets = input.chars().filter(|&c| c == '[').count();
+        let close_brackets = input.chars().filter(|&c| c == ']').count();
+
+        if open_braces > close_braces {
+            return Some(format!(
+                "Missing {} closing brace(s) '}}'. Make sure every '{{' has a matching '}}'.",
+                open_braces - close_braces
+            ));
+        }
+        if open_brackets > close_brackets {
+            return Some(format!(
+                "Missing {} closing bracket(s) ']'. Make sure every '[' has a matching ']'.",
+                open_brackets - close_brackets
+            ));
+        }
+        return Some(
+            "Unexpected end of input. Check for missing closing braces '}}' or brackets ']'."
+                .to_string(),
+        );
+    }
+
+    // Check for unquoted keys (e.g. { key: "value" })
+    let has_unquoted_key = input.lines().any(|line| {
+        let trimmed = line.trim();
+        if let Some(colon_pos) = trimmed.find(':') {
+            // Strip leading { and [ to get the actual key text
+            let before_raw = trimmed[..colon_pos].trim();
+            let key_text = before_raw
+                .trim_start_matches(|c: char| c == '{' || c == '[')
+                .trim();
+            !key_text.is_empty() && !key_text.starts_with('"') && !key_text.ends_with('"')
+        } else {
+            false
+        }
+    });
+    if has_unquoted_key {
+        return Some(
+            "JSON keys must be wrapped in double quotes. Example: { \"key\": \"value\" }"
+                .to_string(),
+        );
+    }
+
+    None
+}
+
+/// Validate JSON and return structured error info with suggestions
+#[tauri::command]
+fn validate_json(input: String) -> ValidationResult {
+    if input.trim().is_empty() {
+        return ValidationResult {
+            valid: false,
+            error: Some(ValidationError {
+                message: "Input is empty".to_string(),
+                line: 0,
+                column: 0,
+            }),
+            suggestion: None,
+        };
+    }
+
+    match serde_json::from_str::<Value>(&input) {
+        Ok(_) => ValidationResult {
+            valid: true,
+            error: None,
+            suggestion: None,
+        },
+        Err(e) => {
+            let err_message = e.to_string();
+            let suggestion = suggest_json_fix(&input, &err_message);
+            ValidationResult {
+                valid: false,
+                error: Some(ValidationError {
+                    line: e.line(),
+                    column: e.column(),
+                    message: err_message,
+                }),
+                suggestion,
+            }
+        }
+    }
+}
 
 /// Remove background using flood-fill algorithm from edges
 #[tauri::command]
@@ -1235,7 +1349,8 @@ fn main() {
             json_to_proto,
             proto_to_json,
             json_to_class,
-            remove_background
+            remove_background,
+            validate_json
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -1467,5 +1582,54 @@ message Root {
     fn test_proto_to_json_empty_input() {
         let result = proto_to_json("".to_string());
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_validate_json_valid() {
+        let input = r#"{"name":"John","age":30}"#.to_string();
+        let result = validate_json(input);
+        assert!(result.valid);
+        assert!(result.error.is_none());
+        assert!(result.suggestion.is_none());
+    }
+
+    #[test]
+    fn test_validate_json_empty() {
+        let result = validate_json("".to_string());
+        assert!(!result.valid);
+        let err = result.error.unwrap();
+        assert_eq!(err.message, "Input is empty");
+        assert_eq!(err.line, 0);
+        assert_eq!(err.column, 0);
+    }
+
+    #[test]
+    fn test_validate_json_invalid_with_position() {
+        // Missing comma between keys
+        let input = r#"{"name":"John" "age":30}"#.to_string();
+        let result = validate_json(input);
+        assert!(!result.valid);
+        let err = result.error.unwrap();
+        assert!(err.line >= 1);
+        assert!(err.column >= 1);
+        assert!(!err.message.is_empty());
+    }
+
+    #[test]
+    fn test_validate_json_single_quotes_suggestion() {
+        let input = "{'name': 'John'}".to_string();
+        let result = validate_json(input);
+        assert!(!result.valid);
+        let suggestion = result.suggestion.unwrap();
+        assert!(suggestion.contains("double quotes"));
+    }
+
+    #[test]
+    fn test_validate_json_missing_brace_suggestion() {
+        let input = r#"{"name":"John""#.to_string();
+        let result = validate_json(input);
+        assert!(!result.valid);
+        let suggestion = result.suggestion.unwrap();
+        assert!(suggestion.contains("closing brace"));
     }
 }

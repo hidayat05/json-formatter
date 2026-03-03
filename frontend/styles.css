@@ -464,6 +464,34 @@ textarea.output {
     opacity: 0;
 }
 
+.validation-message {
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-size: 12px;
+    margin-top: 4px;
+    line-height: 1.4;
+}
+
+.validation-message.valid {
+    background: linear-gradient(145deg, #d4edda, #c3e6cb);
+    color: #2e7d32;
+    box-shadow:
+        2px 2px 4px rgba(195, 230, 203, 0.5),
+        -2px -2px 4px rgba(212, 237, 218, 0.5);
+}
+
+.validation-message.error {
+    background: linear-gradient(145deg, #f8d7da, #f5c6cb);
+    color: #c62828;
+    box-shadow:
+        2px 2px 4px rgba(245, 198, 203, 0.5),
+        -2px -2px 4px rgba(248, 215, 218, 0.5);
+}
+
+.validation-message.hidden {
+    display: none;
+}
+
 /* Mermaid Editor Styles */
 .mermaid-container {
     display: grid;

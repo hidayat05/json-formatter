@@ -6,6 +6,7 @@ const outputText = document.getElementById("outputText");
 const statusMessage = document.getElementById("statusMessage");
 const language = document.getElementById("languageSelect");
 const classNameInput = document.getElementById("classNameInputText");
+const inputValidation = document.getElementById("inputValidation");
 
 const converterTabBtn = document.getElementById("converterTabBtn");
 const compareTabBtn = document.getElementById("compareTabBtn");
@@ -1125,6 +1126,51 @@ document.addEventListener("keydown", (e) => {
         break;
     }
   }
+});
+
+// Real-time JSON validation using Rust backend (serde_json)
+let validationTimer = null;
+
+function showInputValidation(result) {
+  if (!inputValidation) return;
+  if (result === null) {
+    inputValidation.className = "validation-message hidden";
+    inputValidation.textContent = "";
+    return;
+  }
+  if (result.valid) {
+    inputValidation.className = "validation-message valid";
+    inputValidation.textContent = "✓ Valid JSON";
+  } else {
+    const err = result.error;
+    let msg = "";
+    if (err && err.line > 0) {
+      msg = `✗ ${err.message} (line ${err.line}, col ${err.column})`;
+    } else if (err) {
+      msg = `✗ ${err.message}`;
+    }
+    if (result.suggestion) {
+      msg += ` — ${result.suggestion}`;
+    }
+    inputValidation.className = "validation-message error";
+    inputValidation.textContent = msg;
+  }
+}
+
+inputText.addEventListener("input", () => {
+  clearTimeout(validationTimer);
+  if (!inputText.value.trim()) {
+    showInputValidation(null);
+    return;
+  }
+  validationTimer = setTimeout(async () => {
+    try {
+      const result = await invoke("validate_json", { input: inputText.value });
+      showInputValidation(result);
+    } catch (_) {
+      showInputValidation(null);
+    }
+  }, 300);
 });
 
 setActiveTab("converter");
