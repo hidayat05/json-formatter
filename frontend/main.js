@@ -11,10 +11,12 @@ const converterTabBtn = document.getElementById("converterTabBtn");
 const compareTabBtn = document.getElementById("compareTabBtn");
 const mermaidTabBtn = document.getElementById("mermaidTabBtn");
 const imageResizerTabBtn = document.getElementById("imageResizerTabBtn");
+const jsonEditorTabBtn = document.getElementById("jsonEditorTabBtn");
 const converterSection = document.getElementById("converterSection");
 const compareSection = document.getElementById("compareSection");
 const mermaidSection = document.getElementById("mermaidSection");
 const imageResizerSection = document.getElementById("imageResizerSection");
+const jsonEditorSection = document.getElementById("jsonEditorSection");
 
 const compareLeft = document.getElementById("compareLeft");
 const compareRight = document.getElementById("compareRight");
@@ -218,16 +220,23 @@ function setActiveTab(tab) {
   const isCompare = tab === "compare";
   const isMermaid = tab === "mermaid";
   const isImageResizer = tab === "imageResizer";
+  const isJsonEditor = tab === "jsonEditor";
 
   converterSection.classList.toggle("hidden", !isConverter);
   compareSection.classList.toggle("hidden", !isCompare);
   mermaidSection.classList.toggle("hidden", !isMermaid);
   imageResizerSection.classList.toggle("hidden", !isImageResizer);
+  jsonEditorSection.classList.toggle("hidden", !isJsonEditor);
 
   converterTabBtn.classList.toggle("active", isConverter);
   compareTabBtn.classList.toggle("active", isCompare);
   mermaidTabBtn.classList.toggle("active", isMermaid);
   imageResizerTabBtn.classList.toggle("active", isImageResizer);
+  jsonEditorTabBtn.classList.toggle("active", isJsonEditor);
+
+  if (isJsonEditor && jsonEditor) {
+    jsonEditor.refresh();
+  }
 }
 
 function showStatus(message, isError = false) {
@@ -947,6 +956,181 @@ function handleClearImage() {
   showStatus("Image resizer cleared!");
 }
 
+// JSON Editor (CodeMirror-based)
+let jsonEditor = null;
+const jsonErrorPanel = document.getElementById("jsonErrorPanel");
+
+function initJsonEditor() {
+  if (jsonEditor) return;
+  if (typeof CodeMirror === "undefined") return;
+
+  jsonEditor = CodeMirror(document.getElementById("jsonEditorArea"), {
+    mode: { name: "javascript", json: true },
+    lineNumbers: true,
+    matchBrackets: true,
+    autoCloseBrackets: true,
+    lint: true,
+    gutters: ["CodeMirror-lint-markers"],
+    extraKeys: {
+      "Ctrl-Space": "autocomplete",
+      Tab: function (cm) {
+        cm.replaceSelection("  ", "end");
+      },
+    },
+    hintOptions: {
+      hint: jsonEditorHint,
+      completeSingle: false,
+    },
+    theme: "default",
+    indentUnit: 2,
+    tabSize: 2,
+    lineWrapping: false,
+  });
+
+  jsonEditor.on("change", function () {
+    validateJsonEditor();
+    triggerJsonEditorHint();
+  });
+}
+
+function collectJsonKeys(obj, keys) {
+  if (obj && typeof obj === "object" && !Array.isArray(obj)) {
+    for (const key of Object.keys(obj)) {
+      keys.add(key);
+      collectJsonKeys(obj[key], keys);
+    }
+  } else if (Array.isArray(obj)) {
+    for (const item of obj) {
+      collectJsonKeys(item, keys);
+    }
+  }
+}
+
+function jsonEditorHint(cm) {
+  const cur = cm.getCursor();
+  const token = cm.getTokenAt(cur);
+
+  // Only hint inside string tokens (JSON keys/values)
+  if (token.type !== "string" && token.type !== "string-2") {
+    return null;
+  }
+
+  // Extract the partial string being typed (strip quotes)
+  const start = token.start;
+  const end = cur.ch;
+  const typed = token.string.replace(/^["']/, "").slice(0, end - start - 1);
+
+  // Collect keys from the current JSON document
+  const keys = new Set();
+  const raw = cm.getValue();
+  try {
+    const parsed = JSON.parse(raw);
+    collectJsonKeys(parsed, keys);
+  } catch (_) {
+    // ignore parse errors – still offer partial suggestions
+  }
+
+  // Static JSON value keywords
+  const keywords = ["true", "false", "null"];
+  const allSuggestions = [...keys, ...keywords];
+
+  const list = allSuggestions
+    .filter((k) => {
+      const kLower = k.toLowerCase();
+      const typedLower = typed.toLowerCase();
+      return kLower.startsWith(typedLower) && k !== typed;
+    })
+    .map((k) => ({
+      text: k,
+      displayText: k,
+    }));
+
+  if (!list.length) return null;
+
+  return {
+    list,
+    from: CodeMirror.Pos(cur.line, start + 1), // +1 to skip opening quote
+    to: CodeMirror.Pos(cur.line, end),
+  };
+}
+
+let jsonHintTimer = null;
+function triggerJsonEditorHint() {
+  clearTimeout(jsonHintTimer);
+  jsonHintTimer = setTimeout(() => {
+    if (jsonEditor && !jsonEditor.state.completionActive) {
+      jsonEditor.showHint({ hint: jsonEditorHint, completeSingle: false });
+    }
+  }, 400);
+}
+
+function validateJsonEditor() {
+  if (!jsonEditor) return;
+  const value = jsonEditor.getValue().trim();
+  if (!value) {
+    jsonErrorPanel.className = "json-error-panel";
+    jsonErrorPanel.innerHTML = '<span class="json-error-panel-label">Start typing JSON…</span>';
+    return;
+  }
+  try {
+    JSON.parse(value);
+    jsonErrorPanel.className = "json-error-panel";
+    jsonErrorPanel.innerHTML = '<span class="json-error-panel-label">✅ Valid JSON</span>';
+  } catch (err) {
+    const msg = err.message || String(err);
+    jsonErrorPanel.className = "json-error-panel has-error";
+    jsonErrorPanel.innerHTML = `<span class="json-error-panel-label">❌ ${escapeHtml(msg)}</span>`;
+  }
+}
+
+function handleFormatJsonEditor() {
+  if (!jsonEditor) return;
+  const value = jsonEditor.getValue();
+  try {
+    const formatted = JSON.stringify(JSON.parse(value), null, 2);
+    jsonEditor.setValue(formatted);
+    showStatus("✓ JSON formatted successfully");
+  } catch (err) {
+    showStatus(`Error: ${err.message}`, true);
+  }
+}
+
+function handleMinifyJsonEditor() {
+  if (!jsonEditor) return;
+  const value = jsonEditor.getValue();
+  try {
+    const minified = JSON.stringify(JSON.parse(value));
+    jsonEditor.setValue(minified);
+    showStatus("✓ JSON minified successfully");
+  } catch (err) {
+    showStatus(`Error: ${err.message}`, true);
+  }
+}
+
+function handleClearJsonEditor() {
+  if (jsonEditor) {
+    jsonEditor.setValue("");
+    validateJsonEditor();
+  }
+  showStatus("JSON editor cleared");
+}
+
+async function handleCopyJsonEditor() {
+  if (!jsonEditor) return;
+  const value = jsonEditor.getValue();
+  if (!value) return;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(value);
+    } else {
+      await invoke("plugin:clipboard-manager|write_text", { text: value });
+    }
+    showStatus("✓ JSON copied to clipboard");
+  } catch (err) {
+    showStatus(`Error: Failed to copy - ${err}`, true);
+  }
+}
+
 async function handleCopyMermaid() {
   if (mermaidInput.value) {
     try {
@@ -1015,6 +1199,10 @@ mermaidTabBtn.addEventListener("click", () => setActiveTab("mermaid"));
 imageResizerTabBtn.addEventListener("click", () =>
   setActiveTab("imageResizer"),
 );
+jsonEditorTabBtn.addEventListener("click", () => {
+  setActiveTab("jsonEditor");
+  initJsonEditor();
+});
 
 // Mermaid event listeners
 document
@@ -1057,6 +1245,20 @@ resizeHeight.addEventListener("input", handleHeightChange);
 bgTolerance.addEventListener("input", () => {
   toleranceValue.textContent = bgTolerance.value;
 });
+
+// JSON Editor event listeners
+document
+  .getElementById("formatJsonEditorBtn")
+  .addEventListener("click", handleFormatJsonEditor);
+document
+  .getElementById("minifyJsonEditorBtn")
+  .addEventListener("click", handleMinifyJsonEditor);
+document
+  .getElementById("clearJsonEditorBtn")
+  .addEventListener("click", handleClearJsonEditor);
+document
+  .getElementById("copyJsonEditorBtn")
+  .addEventListener("click", handleCopyJsonEditor);
 
 // Tab key support for Mermaid editor
 mermaidInput.addEventListener("keydown", (e) => {

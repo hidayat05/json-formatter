@@ -12,6 +12,18 @@
         />
         <link rel="stylesheet" href="/styles.css" />
         <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+        <!-- CodeMirror 5 for JSON Editor -->
+        <link rel="stylesheet" href="/lib/codemirror/codemirror.css" />
+        <link rel="stylesheet" href="/lib/codemirror/lint.css" />
+        <link rel="stylesheet" href="/lib/codemirror/show-hint.css" />
+        <script src="/lib/codemirror/codemirror.js"></script>
+        <script src="/lib/codemirror/javascript.js"></script>
+        <script src="/lib/codemirror/lint.js"></script>
+        <script src="/lib/codemirror/jsonlint.js"></script>
+        <script src="/lib/codemirror/json-lint.js"></script>
+        <script src="/lib/codemirror/show-hint.js"></script>
+        <script src="/lib/codemirror/closebrackets.js"></script>
+        <script src="/lib/codemirror/matchbrackets.js"></script>
     </head>
     <body>
         <div class="container">
@@ -29,6 +41,9 @@
                 </button>
                 <button id="imageResizerTabBtn" class="tab-button">
                     Image Resizer
+                </button>
+                <button id="jsonEditorTabBtn" class="tab-button">
+                    JSON Editor
                 </button>
             </div>
 
@@ -387,6 +402,21 @@ graph TD
                     accept="image/*"
                     style="display: none"
                 />
+            </div>
+
+            <div id="jsonEditorSection" class="hidden">
+                <div class="button-group">
+                    <button class="primary" id="formatJsonEditorBtn">✨ Format</button>
+                    <button class="primary" id="minifyJsonEditorBtn">⚡ Minify</button>
+                    <button class="secondary" id="copyJsonEditorBtn">📋 Copy</button>
+                    <button class="danger" id="clearJsonEditorBtn">Clear</button>
+                </div>
+                <div class="json-editor-wrapper">
+                    <div class="json-editor-area" id="jsonEditorArea"></div>
+                    <div class="json-error-panel" id="jsonErrorPanel">
+                        <span class="json-error-panel-label">✅ Valid JSON</span>
+                    </div>
+                </div>
             </div>
 
             <div class="status-message hidden" id="statusMessage"></div>
