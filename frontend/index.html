@@ -30,6 +30,9 @@
                 <button id="imageResizerTabBtn" class="tab-button">
                     Image Resizer
                 </button>
+                <button id="opensslTabBtn" class="tab-button">
+                    OpenSSL Cert
+                </button>
             </div>
 
             <div id="converterSection">
@@ -387,6 +390,45 @@ graph TD
                     accept="image/*"
                     style="display: none"
                 />
+            </div>
+
+            <div id="opensslSection" class="hidden">
+                <div class="button-group">
+                    <button class="primary" id="opensslDetailBtn">
+                        Show Cert Detail
+                    </button>
+                    <button class="danger" id="clearOpensslBtn">Clear</button>
+                </div>
+
+                <div class="editor-container">
+                    <div class="editor-section">
+                        <div class="editor-header">
+                            <span class="editor-label">Certificate String</span>
+                            <button class="copy-button" id="copyOpensslInputBtn">
+                                📋 Copy
+                            </button>
+                        </div>
+                        <textarea
+                            id="opensslInput"
+                            placeholder="Paste certificate string (PEM or base64 DER) here..."
+                        ></textarea>
+                    </div>
+
+                    <div class="editor-section">
+                        <div class="editor-header">
+                            <span class="editor-label">Certificate Detail</span>
+                            <button class="copy-button" id="copyOpensslOutputBtn">
+                                📋 Copy
+                            </button>
+                        </div>
+                        <textarea
+                            id="opensslOutput"
+                            class="output"
+                            readonly
+                            placeholder="OpenSSL detail output will appear here..."
+                        ></textarea>
+                    </div>
+                </div>
             </div>
 
             <div class="status-message hidden" id="statusMessage"></div>

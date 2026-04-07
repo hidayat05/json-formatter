@@ -17,6 +17,7 @@ A native desktop application built with Rust and Tauri for JSON manipulation. Fe
 - **Keyboard Shortcuts**: Ctrl+M to minify, Ctrl+F to format
 - **Native Performance**: Desktop application with native OS integration
 - **Json To Class**: Generate classes from JSON by selected language
+- **OpenSSL Cert Detail**: Parse certificate string (PEM/base64 DER) and show detailed OpenSSL output
 
 ## Requirements
 

@@ -47,6 +47,7 @@ h1 {
     gap: 12px;
     align-items: center;
     justify-content: center;
+    flex-wrap: wrap;
     margin-bottom: 16px;
 }
 
@@ -83,7 +84,8 @@ h1 {
 
 #converterSection,
 #compareSection,
-#mermaidSection {
+#mermaidSection,
+#opensslSection {
     display: flex;
     flex-direction: column;
     flex: 1;

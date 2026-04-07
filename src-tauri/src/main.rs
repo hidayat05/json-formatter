@@ -6,7 +6,11 @@ use image::{GenericImageView, ImageFormat, Rgba};
 use log::{debug, error, info, warn};
 use serde_json::Value;
 use std::collections::VecDeque;
-use std::io::Cursor;
+use std::fs;
+use std::io::{Cursor, Write};
+use std::path::{Path, PathBuf};
+use std::process::{Command, Stdio};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 /// Remove background using flood-fill algorithm from edges
 #[tauri::command]
@@ -187,6 +191,129 @@ fn remove_background(image_data: String, tolerance: u32) -> Result<String, Strin
 
     info!("remove_background: Success");
     Ok(result_base64)
+}
+
+/// Generate certificate detail output using OpenSSL from PEM or DER (base64) string
+#[tauri::command]
+fn openssl_cert_detail(cert_input: String) -> Result<String, String> {
+    info!(
+        "openssl_cert_detail called - input_len: {}",
+        cert_input.len()
+    );
+
+    let trimmed = cert_input.trim();
+    if trimmed.is_empty() {
+        return Err("Certificate input is empty".to_string());
+    }
+
+    // Accept PEM directly; if only base64 DER is provided, wrap as PEM.
+    let pem = if trimmed.contains("-----BEGIN CERTIFICATE-----") {
+        trimmed.to_string()
+    } else {
+        format!(
+            "-----BEGIN CERTIFICATE-----\n{}\n-----END CERTIFICATE-----\n",
+            trimmed
+        )
+    };
+
+    let temp_path = create_temp_cert_path();
+    fs::write(&temp_path, pem.as_bytes())
+        .map_err(|e| format!("Failed to write temporary certificate file: {}", e))?;
+
+    let result = generate_cert_report(&temp_path);
+
+    let _ = fs::remove_file(&temp_path);
+    result
+}
+
+fn create_temp_cert_path() -> PathBuf {
+    let nanos = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_nanos())
+        .unwrap_or(0);
+    std::env::temp_dir().join(format!("json-formatter-cert-{}-{}.pem", std::process::id(), nanos))
+}
+
+fn generate_cert_report(cert_path: &Path) -> Result<String, String> {
+    let cert_path_str = cert_path
+        .to_str()
+        .ok_or("Invalid certificate temp path".to_string())?;
+
+    let detail_output = run_openssl(
+        &["x509", "-text", "-noout", "-inform", "PEM", "-in", cert_path_str],
+        None,
+    )?;
+    let detail = String::from_utf8(detail_output)
+        .map_err(|e| format!("OpenSSL output is not valid UTF-8: {}", e))?;
+
+    let cert_der = run_openssl(
+        &["x509", "-outform", "DER", "-inform", "PEM", "-in", cert_path_str],
+        None,
+    )?;
+    let cert_digest = run_openssl(&["dgst", "-sha256", "-binary"], Some(&cert_der))?;
+    let fingerprint = format_sha256_fingerprint(&cert_digest);
+
+    let pubkey_pem = run_openssl(
+        &["x509", "-pubkey", "-noout", "-inform", "PEM", "-in", cert_path_str],
+        None,
+    )?;
+    let pubkey_der = run_openssl(&["pkey", "-pubin", "-outform", "DER"], Some(&pubkey_pem))?;
+    let pin_digest = run_openssl(&["dgst", "-sha256", "-binary"], Some(&pubkey_der))?;
+    let pin_sha256 = BASE64.encode(pin_digest);
+
+    Ok(format!(
+        "Fingerprint SHA256: {}\nPin SHA256: {}\n\n{}",
+        fingerprint, pin_sha256, detail
+    ))
+}
+
+fn run_openssl(args: &[&str], input: Option<&[u8]>) -> Result<Vec<u8>, String> {
+    let mut command = Command::new("openssl");
+    command.args(args);
+
+    if input.is_some() {
+        command.stdin(Stdio::piped());
+    } else {
+        command.stdin(Stdio::null());
+    }
+
+    let mut process = command
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to run openssl command ({:?}): {}", args, e))?;
+
+    if let Some(data) = input {
+        if let Some(stdin) = process.stdin.as_mut() {
+            stdin
+                .write_all(data)
+                .map_err(|e| format!("Failed to write to openssl stdin ({:?}): {}", args, e))?;
+        }
+    }
+
+    let output = process
+        .wait_with_output()
+        .map_err(|e| format!("Failed to read openssl output ({:?}): {}", args, e))?;
+
+    if output.status.success() {
+        Ok(output.stdout)
+    } else {
+        let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        if err.is_empty() {
+            Err("Failed to parse certificate. Ensure input is valid PEM/DER certificate string."
+                .to_string())
+        } else {
+            Err(format!("OpenSSL error: {}", err))
+        }
+    }
+}
+
+fn format_sha256_fingerprint(digest: &[u8]) -> String {
+    digest
+        .iter()
+        .map(|b| format!("{:02X}", b))
+        .collect::<Vec<String>>()
+        .join(":")
 }
 
 /// Minify JSON by removing all unnecessary whitespace
@@ -1235,7 +1362,8 @@ fn main() {
             json_to_proto,
             proto_to_json,
             json_to_class,
-            remove_background
+            remove_background,
+            openssl_cert_detail
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -11,14 +11,19 @@ const converterTabBtn = document.getElementById("converterTabBtn");
 const compareTabBtn = document.getElementById("compareTabBtn");
 const mermaidTabBtn = document.getElementById("mermaidTabBtn");
 const imageResizerTabBtn = document.getElementById("imageResizerTabBtn");
+const opensslTabBtn = document.getElementById("opensslTabBtn");
 const converterSection = document.getElementById("converterSection");
 const compareSection = document.getElementById("compareSection");
 const mermaidSection = document.getElementById("mermaidSection");
 const imageResizerSection = document.getElementById("imageResizerSection");
+const opensslSection = document.getElementById("opensslSection");
 
 const compareLeft = document.getElementById("compareLeft");
 const compareRight = document.getElementById("compareRight");
 const diffContainer = document.getElementById("diffContainer");
+
+const opensslInput = document.getElementById("opensslInput");
+const opensslOutput = document.getElementById("opensslOutput");
 
 // Mermaid elements
 const mermaidInput = document.getElementById("mermaidInput");
@@ -218,16 +223,19 @@ function setActiveTab(tab) {
   const isCompare = tab === "compare";
   const isMermaid = tab === "mermaid";
   const isImageResizer = tab === "imageResizer";
+  const isOpenssl = tab === "openssl";
 
   converterSection.classList.toggle("hidden", !isConverter);
   compareSection.classList.toggle("hidden", !isCompare);
   mermaidSection.classList.toggle("hidden", !isMermaid);
   imageResizerSection.classList.toggle("hidden", !isImageResizer);
+  opensslSection.classList.toggle("hidden", !isOpenssl);
 
   converterTabBtn.classList.toggle("active", isConverter);
   compareTabBtn.classList.toggle("active", isCompare);
   mermaidTabBtn.classList.toggle("active", isMermaid);
   imageResizerTabBtn.classList.toggle("active", isImageResizer);
+  opensslTabBtn.classList.toggle("active", isOpenssl);
 }
 
 function showStatus(message, isError = false) {
@@ -385,6 +393,59 @@ function handleClear() {
   outputText.value = "";
   classNameInput.value = "";
   handleCompareClear();
+  handleClearOpenssl();
+}
+
+async function handleOpensslDetail() {
+  try {
+    const result = await invoke("openssl_cert_detail", {
+      certInput: opensslInput.value,
+    });
+    opensslOutput.value = result;
+    showStatus("✓ Certificate detail generated successfully");
+  } catch (error) {
+    opensslOutput.value = "";
+    showStatus(`Error: ${error}`, true);
+  }
+}
+
+function handleClearOpenssl() {
+  opensslInput.value = "";
+  opensslOutput.value = "";
+}
+
+async function handleCopyOpensslInput() {
+  if (!opensslInput.value) return;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(opensslInput.value);
+      showStatus("✓ Certificate input copied to clipboard");
+    } else {
+      await invoke("plugin:clipboard-manager|write_text", {
+        text: opensslInput.value,
+      });
+      showStatus("✓ Certificate input copied to clipboard");
+    }
+  } catch (error) {
+    showStatus(`Error: Failed to copy - ${error}`, true);
+  }
+}
+
+async function handleCopyOpensslOutput() {
+  if (!opensslOutput.value) return;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(opensslOutput.value);
+      showStatus("✓ Certificate detail copied to clipboard");
+    } else {
+      await invoke("plugin:clipboard-manager|write_text", {
+        text: opensslOutput.value,
+      });
+      showStatus("✓ Certificate detail copied to clipboard");
+    }
+  } catch (error) {
+    showStatus(`Error: Failed to copy - ${error}`, true);
+  }
 }
 
 async function handleCopyInput() {
@@ -1015,6 +1076,7 @@ mermaidTabBtn.addEventListener("click", () => setActiveTab("mermaid"));
 imageResizerTabBtn.addEventListener("click", () =>
   setActiveTab("imageResizer"),
 );
+opensslTabBtn.addEventListener("click", () => setActiveTab("openssl"));
 
 // Mermaid event listeners
 document
@@ -1057,6 +1119,19 @@ resizeHeight.addEventListener("input", handleHeightChange);
 bgTolerance.addEventListener("input", () => {
   toleranceValue.textContent = bgTolerance.value;
 });
+
+document
+  .getElementById("opensslDetailBtn")
+  .addEventListener("click", handleOpensslDetail);
+document
+  .getElementById("clearOpensslBtn")
+  .addEventListener("click", handleClearOpenssl);
+document
+  .getElementById("copyOpensslInputBtn")
+  .addEventListener("click", handleCopyOpensslInput);
+document
+  .getElementById("copyOpensslOutputBtn")
+  .addEventListener("click", handleCopyOpensslOutput);
 
 // Tab key support for Mermaid editor
 mermaidInput.addEventListener("keydown", (e) => {
