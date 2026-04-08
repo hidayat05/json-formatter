@@ -193,7 +193,8 @@ fn remove_background(image_data: String, tolerance: u32) -> Result<String, Strin
     Ok(result_base64)
 }
 
-/// Generate certificate detail output using OpenSSL from PEM or DER (base64) string
+/// Generate certificate detail output using OpenSSL from PEM or DER (base64) string.
+/// Supports multiple PEM certificates concatenated in the input.
 #[tauri::command]
 fn openssl_cert_detail(cert_input: String) -> Result<String, String> {
     info!(
@@ -206,24 +207,349 @@ fn openssl_cert_detail(cert_input: String) -> Result<String, String> {
         return Err("Certificate input is empty".to_string());
     }
 
-    // Accept PEM directly; if only base64 DER is provided, wrap as PEM.
-    let pem = if trimmed.contains("-----BEGIN CERTIFICATE-----") {
-        trimmed.to_string()
-    } else {
-        format!(
+    // If no PEM header found, treat entire input as bare base64 DER → single cert
+    if !trimmed.contains("-----BEGIN CERTIFICATE-----") {
+        let pem = format!(
             "-----BEGIN CERTIFICATE-----\n{}\n-----END CERTIFICATE-----\n",
             trimmed
-        )
+        );
+        let temp_path = create_temp_cert_path();
+        fs::write(&temp_path, pem.as_bytes())
+            .map_err(|e| format!("Failed to write temporary certificate file: {}", e))?;
+        let result = generate_cert_report(&temp_path);
+        let _ = fs::remove_file(&temp_path);
+        return result;
+    }
+
+    // Extract all PEM certificates from input
+    let certs = extract_pem_certificates(trimmed);
+
+    if certs.is_empty() {
+        return Err("No valid PEM certificate block found in input".to_string());
+    }
+
+    if certs.len() == 1 {
+        // Single cert: return plain report (backward-compatible)
+        let temp_path = create_temp_cert_path();
+        fs::write(&temp_path, certs[0].as_bytes())
+            .map_err(|e| format!("Failed to write temporary certificate file: {}", e))?;
+        let result = generate_cert_report(&temp_path);
+        let _ = fs::remove_file(&temp_path);
+        return result;
+    }
+
+    // Multiple certs: generate numbered report for each
+    let total = certs.len();
+    let mut sections = Vec::new();
+
+    for (index, cert_pem) in certs.iter().enumerate() {
+        let temp_path = create_temp_cert_path();
+        fs::write(&temp_path, cert_pem.as_bytes())
+            .map_err(|e| format!("Failed to write temporary certificate file: {}", e))?;
+
+        let detail_result = generate_cert_report(&temp_path);
+        let role_result = detect_cert_role(&temp_path);
+        let _ = fs::remove_file(&temp_path);
+
+        let detail = detail_result?;
+        let role = role_result?;
+
+        sections.push(format!(
+            "===== Certificate {} of {} ({}) =====\n{}",
+            index + 1,
+            total,
+            role,
+            detail
+        ));
+    }
+
+    Ok(sections.join("\n\n"))
+}
+
+#[derive(serde::Serialize)]
+struct SslUrlCheckResult {
+    pem: String,
+    detail: String,
+}
+
+/// Generate certificate detail output by connecting to URL host with OpenSSL s_client
+#[tauri::command]
+fn openssl_cert_detail_from_url(
+    url_input: String,
+    chain_mode: Option<String>,
+) -> Result<SslUrlCheckResult, String> {
+    info!(
+        "openssl_cert_detail_from_url called - input_len: {}",
+        url_input.len()
+    );
+
+    let trimmed = url_input.trim();
+    if trimmed.is_empty() {
+        return Err("URL input is empty".to_string());
+    }
+
+    let (host, port) = parse_host_and_port(trimmed)?;
+    let connect_arg = format!("{}:{}", host, port);
+
+    let cert_chain_text = run_openssl_s_client_showcerts(&connect_arg, &host)?;
+    let certs = extract_pem_certificates(&cert_chain_text);
+
+    if certs.is_empty() {
+        return Err(format!(
+            "Failed to extract certificate from server response for {}:{}",
+            host, port
+        ));
+    }
+
+    let mode = chain_mode
+        .as_deref()
+        .map(str::trim)
+        .map(str::to_lowercase)
+        .unwrap_or_else(|| "full".to_string());
+    let show_full_chain = mode != "leaf";
+
+    let selected: Vec<&String> = if show_full_chain {
+        certs.iter().collect()
+    } else {
+        vec![&certs[0]]
     };
 
-    let temp_path = create_temp_cert_path();
-    fs::write(&temp_path, pem.as_bytes())
-        .map_err(|e| format!("Failed to write temporary certificate file: {}", e))?;
+    let mut sections = Vec::new();
+    let mut has_self_signed_root = false;
 
-    let result = generate_cert_report(&temp_path);
+    for (index, cert_pem) in selected.iter().enumerate() {
+        let temp_path = create_temp_cert_path();
+        fs::write(&temp_path, cert_pem.as_bytes())
+            .map_err(|e| format!("Failed to write temporary certificate file: {}", e))?;
 
-    let _ = fs::remove_file(&temp_path);
-    result
+        let detail_result = generate_cert_report(&temp_path);
+        let role_result = detect_cert_role(&temp_path);
+        let _ = fs::remove_file(&temp_path);
+
+        let detail = detail_result?;
+        let role = role_result?;
+        if role == "Root / Self-Signed" {
+            has_self_signed_root = true;
+        }
+
+        sections.push(format!(
+            "===== Certificate {} of {} ({}) =====\n{}",
+            index + 1,
+            selected.len(),
+            role,
+            detail
+        ));
+    }
+
+    let mut output = format!(
+        "Target: {}:{}\nCertificates in server chain: {}\nMode: {}\n",
+        host,
+        port,
+        certs.len(),
+        if show_full_chain {
+            "full"
+        } else {
+            "leaf"
+        }
+    );
+
+    if show_full_chain && !has_self_signed_root {
+        output.push_str(
+            "Note: Root certificate may not be sent by the server (this is normal TLS behavior).\n",
+        );
+    }
+
+    output.push('\n');
+    output.push_str(&sections.join("\n\n"));
+
+    // Build concatenated PEM matching the selected subset for the Certificate String field
+    let pem_chain = selected.iter().map(|s| s.as_str()).collect::<Vec<_>>().join("\n");
+
+    Ok(SslUrlCheckResult {
+        pem: pem_chain,
+        detail: output,
+    })
+}
+
+fn run_openssl_s_client_showcerts(connect: &str, servername: &str) -> Result<String, String> {
+    let output = Command::new("openssl")
+        .args([
+            "s_client",
+            "-connect",
+            connect,
+            "-servername",
+            servername,
+            "-showcerts",
+        ])
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Failed to run openssl s_client: {}", e))?
+        .wait_with_output()
+        .map_err(|e| format!("Failed to read openssl s_client output: {}", e))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{}\n{}", stdout, stderr);
+
+    if !extract_pem_certificates(&combined).is_empty() {
+        return Ok(combined);
+    }
+
+    let trimmed_stderr = stderr.trim();
+    if output.status.success() {
+        Err("OpenSSL did not return a certificate from the target URL".to_string())
+    } else if trimmed_stderr.is_empty() {
+        Err("OpenSSL failed while connecting to target URL".to_string())
+    } else {
+        Err(format!("OpenSSL error: {}", trimmed_stderr))
+    }
+}
+
+fn parse_host_and_port(url_input: &str) -> Result<(String, u16), String> {
+    let normalized = if url_input.contains("://") {
+        url_input.to_string()
+    } else {
+        format!("https://{}", url_input)
+    };
+
+    let without_scheme = normalized
+        .split_once("://")
+        .map(|(_, rest)| rest)
+        .unwrap_or(normalized.as_str());
+
+    let authority_with_path = without_scheme
+        .split('#')
+        .next()
+        .unwrap_or(without_scheme);
+    let authority = authority_with_path
+        .split('/')
+        .next()
+        .unwrap_or(authority_with_path)
+        .trim();
+
+    if authority.is_empty() {
+        return Err("Invalid URL: host is empty".to_string());
+    }
+
+    let authority_no_auth = authority
+        .rsplit('@')
+        .next()
+        .unwrap_or(authority)
+        .trim();
+
+    if authority_no_auth.is_empty() {
+        return Err("Invalid URL: host is empty".to_string());
+    }
+
+    let (host, port) = if authority_no_auth.starts_with('[') {
+        let end_bracket = authority_no_auth
+            .find(']')
+            .ok_or("Invalid URL: malformed IPv6 host".to_string())?;
+        let host_part = authority_no_auth[1..end_bracket].to_string();
+        let rest = &authority_no_auth[end_bracket + 1..];
+
+        if let Some(port_part) = rest.strip_prefix(':') {
+            let parsed_port = port_part
+                .parse::<u16>()
+                .map_err(|_| "Invalid URL: port is not a valid number".to_string())?;
+            (host_part, parsed_port)
+        } else {
+            (host_part, 443)
+        }
+    } else if let Some((h, p)) = authority_no_auth.rsplit_once(':') {
+        if h.contains(':') {
+            (authority_no_auth.to_string(), 443)
+        } else {
+            let parsed_port = p
+                .parse::<u16>()
+                .map_err(|_| "Invalid URL: port is not a valid number".to_string())?;
+            (h.to_string(), parsed_port)
+        }
+    } else {
+        (authority_no_auth.to_string(), 443)
+    };
+
+    if host.trim().is_empty() {
+        return Err("Invalid URL: host is empty".to_string());
+    }
+
+    Ok((host, port))
+}
+
+fn extract_pem_certificates(text: &str) -> Vec<String> {
+    let begin = "-----BEGIN CERTIFICATE-----";
+    let end = "-----END CERTIFICATE-----";
+    let mut certs = Vec::new();
+    let mut cursor = 0usize;
+
+    while let Some(start_rel) = text[cursor..].find(begin) {
+        let start_idx = cursor + start_rel;
+        let end_search_start = start_idx;
+
+        let Some(end_rel) = text[end_search_start..].find(end) else {
+            break;
+        };
+
+        let end_idx = end_search_start + end_rel + end.len();
+        certs.push(format!("{}\n", &text[start_idx..end_idx]));
+        cursor = end_idx;
+    }
+
+    certs
+}
+
+fn detect_cert_role(cert_path: &Path) -> Result<&'static str, String> {
+    let cert_path_str = cert_path
+        .to_str()
+        .ok_or("Invalid certificate temp path".to_string())?;
+
+    let subject_output = run_openssl(
+        &[
+            "x509",
+            "-noout",
+            "-subject",
+            "-inform",
+            "PEM",
+            "-in",
+            cert_path_str,
+        ],
+        None,
+    )?;
+    let issuer_output = run_openssl(
+        &[
+            "x509",
+            "-noout",
+            "-issuer",
+            "-inform",
+            "PEM",
+            "-in",
+            cert_path_str,
+        ],
+        None,
+    )?;
+
+    let subject = String::from_utf8_lossy(&subject_output);
+    let issuer = String::from_utf8_lossy(&issuer_output);
+
+    let subject_norm = normalize_dn_line(&subject, "subject=");
+    let issuer_norm = normalize_dn_line(&issuer, "issuer=");
+
+    if !subject_norm.is_empty() && subject_norm == issuer_norm {
+        Ok("Root / Self-Signed")
+    } else {
+        Ok("Leaf/Intermediate")
+    }
+}
+
+fn normalize_dn_line(value: &str, prefix: &str) -> String {
+    value
+        .trim()
+        .trim_start_matches(prefix)
+        .split_whitespace()
+        .collect::<String>()
+        .to_lowercase()
 }
 
 fn create_temp_cert_path() -> PathBuf {
@@ -1363,7 +1689,8 @@ fn main() {
             proto_to_json,
             json_to_class,
             remove_background,
-            openssl_cert_detail
+            openssl_cert_detail,
+            openssl_cert_detail_from_url
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
@@ -1595,5 +1922,14 @@ message Root {
     fn test_proto_to_json_empty_input() {
         let result = proto_to_json("".to_string());
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_extract_pem_certificates_multiple() {
+        let sample = "noise\n-----BEGIN CERTIFICATE-----\nAAA\n-----END CERTIFICATE-----\nmore\n-----BEGIN CERTIFICATE-----\nBBB\n-----END CERTIFICATE-----\n";
+        let certs = extract_pem_certificates(sample);
+        assert_eq!(certs.len(), 2);
+        assert!(certs[0].contains("AAA"));
+        assert!(certs[1].contains("BBB"));
     }
 }

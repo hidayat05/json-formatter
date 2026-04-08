@@ -24,6 +24,8 @@ const diffContainer = document.getElementById("diffContainer");
 
 const opensslInput = document.getElementById("opensslInput");
 const opensslOutput = document.getElementById("opensslOutput");
+const opensslUrlInput = document.getElementById("opensslUrlInput");
+const opensslChainMode = document.getElementById("opensslChainMode");
 
 // Mermaid elements
 const mermaidInput = document.getElementById("mermaidInput");
@@ -402,16 +404,44 @@ async function handleOpensslDetail() {
       certInput: opensslInput.value,
     });
     opensslOutput.value = result;
-    showStatus("✓ Certificate detail generated successfully");
+    const certCount = (opensslInput.value.match(/-----BEGIN CERTIFICATE-----/g) || []).length;
+    const label = certCount > 1 ? `${certCount} certificates` : "certificate";
+    showStatus(`✓ Certificate detail generated successfully (${label || "1 certificate"})`);
   } catch (error) {
     opensslOutput.value = "";
     showStatus(`Error: ${error}`, true);
   }
 }
 
+async function handleOpensslDetailFromUrl() {
+  const urlInput = opensslUrlInput.value.trim();
+  if (!urlInput) {
+    showStatus("Please enter a URL to check SSL detail", true);
+    return;
+  }
+
+  try {
+    const result = await invoke("openssl_cert_detail_from_url", {
+      urlInput,
+      chainMode: opensslChainMode.value,
+    });
+    opensslInput.value = result.pem;
+    opensslOutput.value = result.detail;
+    showStatus(
+      `✓ SSL detail fetched from URL successfully (${opensslChainMode.value} mode)`
+    );
+  } catch (error) {
+    opensslInput.value = "";
+    opensslOutput.value = "";
+    showStatus(`Error: ${error}`, true);
+  }
+}
+
 function handleClearOpenssl() {
+  opensslUrlInput.value = "";
   opensslInput.value = "";
   opensslOutput.value = "";
+  opensslChainMode.value = "full";
 }
 
 async function handleCopyOpensslInput() {
@@ -1124,6 +1154,9 @@ document
   .getElementById("opensslDetailBtn")
   .addEventListener("click", handleOpensslDetail);
 document
+  .getElementById("opensslUrlDetailBtn")
+  .addEventListener("click", handleOpensslDetailFromUrl);
+document
   .getElementById("clearOpensslBtn")
   .addEventListener("click", handleClearOpenssl);
 document
@@ -1132,6 +1165,13 @@ document
 document
   .getElementById("copyOpensslOutputBtn")
   .addEventListener("click", handleCopyOpensslOutput);
+
+opensslUrlInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    handleOpensslDetailFromUrl();
+  }
+});
 
 // Tab key support for Mermaid editor
 mermaidInput.addEventListener("keydown", (e) => {

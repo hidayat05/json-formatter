@@ -400,6 +400,26 @@ graph TD
                     <button class="danger" id="clearOpensslBtn">Clear</button>
                 </div>
 
+                <div class="openssl-url-row">
+                    <label for="opensslUrlInput">URL Input:</label>
+                    <input
+                        type="text"
+                        id="opensslUrlInput"
+                        class="openssl-url-input"
+                        placeholder="Enter URL (e.g. https://maskipli.com or http://maskipli.com)"
+                    />
+
+                    <label for="opensslChainMode">Mode:</label>
+                    <select id="opensslChainMode" class="openssl-chain-mode">
+                        <option value="leaf">Show leaf only</option>
+                        <option value="full" selected>Show full chain</option>
+                    </select>
+
+                    <button class="primary" id="opensslUrlDetailBtn">
+                        Check URL SSL
+                    </button>
+                </div>
+
                 <div class="editor-container">
                     <div class="editor-section">
                         <div class="editor-header">
