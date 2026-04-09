@@ -2,22 +2,57 @@
 
 ![](docs/json-formatter.gif)
 
-A native desktop application built with Rust and Tauri for JSON manipulation. Features a modern web-based UI powered by HTML/CSS/JavaScript with Rust backend.
+A native desktop application built with Rust and Tauri for JSON and utility workflows. It ships with a tab-based desktop UI powered by HTML/CSS/JavaScript and a Rust backend.
 
 ## Features
 
-- **Minify JSON**: Remove all unnecessary whitespace from JSON
-- **Format JSON**: Pretty-print JSON with proper indentation
-- **JSON to String**: Convert JSON to an escaped string literal
-- **String to JSON**: Parse escaped JSON string literals back to formatted JSON
-- **JSON to Proto**: Generate Protocol Buffers (proto3) schema definition from JSON structure
-- **Proto to JSON**: Convert Protocol Buffers (proto3) schema to sample JSON data
-- **Copy to Clipboard**: One-click copy for both input and output with the 📋 Copy button
-- **Clear All**: Reset both input and output fields
-- **Keyboard Shortcuts**: Ctrl+M to minify, Ctrl+F to format
-- **Native Performance**: Desktop application with native OS integration
-- **Json To Class**: Generate classes from JSON by selected language
-- **OpenSSL Cert Detail**: Parse certificate string (PEM/base64 DER) and show detailed OpenSSL output
+### JSON Converter
+- **Minify JSON**: Remove unnecessary whitespace from JSON
+- **Format JSON**: Pretty-print JSON with indentation
+- **JSON to String**: Convert JSON into an escaped string literal
+- **String to JSON**: Parse escaped JSON string literals back into formatted JSON
+- **JSON to Proto**: Generate Protocol Buffers (proto3) schema from JSON
+- **Proto to JSON**: Convert Protocol Buffers (proto3) schema to sample JSON
+- **JSON to Class**: Generate data models/classes for:
+  TypeScript, JavaScript, Python, Rust, Java, C#, Go, Kotlin, and Swift
+
+### JSON Compare
+- **Side-by-side compare**: Compare two JSON payloads after normalization
+- **Beautify per side**: Format left or right JSON independently before compare
+- **Diff output**: Visual diff panel plus copyable diff text
+
+### Mermaid Editor
+- **Render Mermaid diagrams**: Live render Mermaid syntax into SVG
+- **Download PNG**: Export the rendered diagram as PNG
+- **Zoom and pan**: Zoom controls, wheel zoom, and drag mode for large diagrams
+- **Editor helpers**: Copy Mermaid code and use Tab / Shift+Tab indentation support
+
+### Image Resizer
+- **Resize by percentage**
+- **Resize by dimensions**
+- **Quality-only recompression**
+- **Convert to PNG**
+- **Background removal**: Flood-fill based background removal with tolerance control
+- **Download processed image**
+
+### OpenSSL Cert
+- **Certificate detail from text**: Parse PEM or base64 DER certificate input
+- **Certificate detail from URL**: Fetch server certificates directly from a target URL
+- **Leaf or full chain mode**: View only leaf certificate or full chain
+- **Certificate fingerprinting**: Includes SHA-256 fingerprint and public key pin output
+
+### Traceroute
+- **Traceroute from URL or host**: Run traceroute directly from the app
+- **Hop IP details**: Extract hop IPs and enrich them with type and reverse DNS
+- **Network enrichment**: Best-effort ASN, organization, and geo summary for public IPs
+- **Readable output**: Hop metadata rendered as an ASCII table in the result panel
+- **Loading state**: Shimmer loading state while traceroute is running
+
+### General UX
+- **Copy to Clipboard**: One-click copy buttons across tabs
+- **Clear actions**: Clear actions for converter, compare, image, OpenSSL, and traceroute tools
+- **Keyboard shortcuts**: Ctrl+M to minify, Ctrl+F to format
+- **Native desktop app**: Tauri-based app with native OS integration
 
 ## Requirements
 
@@ -64,19 +99,18 @@ The built application will be in `src-tauri/target/release/bundle/`:
 
 ## Usage
 
-1. Launch the application (`cargo tauri dev` or run the built executable)
-2. Enter or paste JSON content into the **Input** text area (left side)
-3. Click one of the action buttons:
-   - **Minify JSON** (Ctrl+M): Compresses JSON to a single line
-   - **Format JSON** (Ctrl+F): Formats JSON with indentation
-   - **JSON → String**: Converts JSON to an escaped string
-   - **String → JSON**: Converts an escaped string back to JSON
-   - **JSON → Proto**: Generates Protocol Buffers schema from JSON
-   - **Proto → JSON**: Converts Protocol Buffers schema to sample JSON
-   - **Clear All**: Resets both input and output
-4. View the result in the **Output** text area (right side)
-5. Click the **📋 Copy** button to copy input or output to your clipboard
-6. Status messages appear at the bottom (green for success, red for errors)
+1. Launch the application with `cargo tauri dev` or open the packaged desktop app.
+2. Choose a tab from the top bar:
+  - **JSON Converter** for transformation and code generation
+  - **JSON Compare** for left/right diffing
+  - **Mermaid Editor** for diagram authoring and export
+  - **Image Resizer** for image resize and background removal
+  - **OpenSSL Cert** for certificate inspection from text or URL
+  - **Traceroute** for network path inspection and hop enrichment
+3. Enter input for the selected tool.
+4. Run the action using the tab-specific buttons.
+5. Review output in the result panel and use the copy button if needed.
+6. Status messages appear at the bottom for success and error feedback.
 
 ## Examples
 
@@ -202,27 +236,35 @@ message Address {
 
 ## Technologies Used
 
-- **Rust**: Backend with Tauri commands for JSON processing
+- **Rust**: Backend with Tauri commands for JSON processing and utility operations
 - **Tauri**: Cross-platform desktop framework
 - **HTML/CSS/JavaScript**: Modern frontend UI
 - **serde_json**: JSON parsing and serialization
 - **Tauri Clipboard Plugin**: Native clipboard access
+- **OpenSSL**: Certificate inspection and TLS certificate retrieval
+- **Mermaid**: Client-side diagram rendering
+- **System utilities**: Uses `traceroute`, `curl`, and `nslookup` when available
 
 ## Project Structure
 
 ```
 json-formatter/
+├── docs/                  # Screenshots and documentation assets
 ├── frontend/              # Frontend files
-│   ├── index.html        # HTML + embedded CSS
-│   └── main.js          # JavaScript with Tauri API calls
+│   ├── index.html         # Tab-based UI markup
+│   ├── main.js            # Frontend behavior and Tauri invoke calls
+│   └── styles.css         # Application styling
 ├── src-tauri/            # Rust backend
-│   ├── Cargo.toml       # Backend dependencies
-│   ├── tauri.conf.json  # Tauri configuration
-│   ├── build.rs         # Build script
-│   ├── src/
-│   │   └── main.rs     # Tauri commands and app logic
-│   └── icons/          # Application icons
-└── dist/                # Build output (auto-generated)
+│   ├── Cargo.toml        # Backend dependencies
+│   ├── tauri.conf.json   # Tauri configuration
+│   ├── build.rs          # Build script
+│   ├── capabilities/     # Tauri capability definitions
+│   ├── icons/            # Application icons
+│   ├── gen/              # Generated Tauri schema files
+│   └── src/
+│       └── main.rs       # Tauri commands and app logic
+├── run.sh                # Helper run script
+└── README.md             # Project documentation
 ```
 
 ## Development
@@ -250,11 +292,17 @@ cargo tauri build
 cd src-tauri
 cargo test
 
-# The JSON processing functions have full test coverage
+# Backend tests cover core JSON utilities; add more coverage as new tools are introduced
 ```
 
 ### Debugging
 - Frontend: Use browser dev tools (opened automatically in dev mode)
 - Backend: Add `dbg!()` macros or use `println!()` in Rust code
 - Logs appear in terminal when running `cargo tauri dev`
+
+## Notes
+
+- `OpenSSL Cert` requires the `openssl` CLI to be available on the host system.
+- `Traceroute` uses system utilities such as `traceroute`, `nslookup`, and `curl` when available.
+- Public hop enrichment in `Traceroute` is best-effort and depends on network access.
 

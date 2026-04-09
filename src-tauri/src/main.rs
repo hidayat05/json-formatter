@@ -5,9 +5,10 @@ use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use image::{GenericImageView, ImageFormat, Rgba};
 use log::{debug, error, info, warn};
 use serde_json::Value;
-use std::collections::VecDeque;
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::fs;
 use std::io::{Cursor, Write};
+use std::net::IpAddr;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -476,6 +477,417 @@ fn parse_host_and_port(url_input: &str) -> Result<(String, u16), String> {
     }
 
     Ok((host, port))
+}
+
+#[tauri::command]
+fn run_traceroute(url_input: String) -> Result<String, String> {
+    info!("run_traceroute called - input_len: {}", url_input.len());
+
+    let trimmed = url_input.trim();
+    if trimmed.is_empty() {
+        return Err("URL input is empty".to_string());
+    }
+
+    let (host, port) = parse_host_and_port(trimmed)?;
+
+    let output = Command::new("traceroute")
+        .args(["-m", "20", "-q", "1", "-w", "2", &host])
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                "traceroute command not found on this system".to_string()
+            } else {
+                format!("Failed to run traceroute: {}", e)
+            }
+        })?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+
+    let mut result = format!(
+        "Target: {}:{}\nTraceroute host: {}\n\n{}",
+        host,
+        port,
+        host,
+        stdout.trim_end()
+    );
+
+    let ip_details = build_traceroute_ip_details(stdout.as_ref());
+    if !ip_details.is_empty() {
+        result.push_str("\n\n--- hop ip details ---\n");
+        result.push_str(&ip_details);
+    }
+
+    if !stderr.trim().is_empty() {
+        result.push_str("\n\n--- stderr ---\n");
+        result.push_str(stderr.trim());
+    }
+
+    if output.status.success() || !stdout.trim().is_empty() {
+        Ok(result)
+    } else {
+        Err(format!(
+            "Traceroute failed for host '{}'{}",
+            host,
+            if stderr.trim().is_empty() {
+                "".to_string()
+            } else {
+                format!(": {}", stderr.trim())
+            }
+        ))
+    }
+}
+
+fn build_traceroute_ip_details(traceroute_stdout: &str) -> String {
+    let mut rows: Vec<[String; 7]> = Vec::new();
+    let mut seen = HashSet::new();
+    let mut ip_cache: HashMap<IpAddr, IpExtraInfo> = HashMap::new();
+
+    for line in traceroute_stdout.lines() {
+        let trimmed = line.trim();
+        if trimmed.is_empty() || trimmed.starts_with("traceroute to") {
+            continue;
+        }
+
+        let hop = trimmed
+            .split_whitespace()
+            .next()
+            .and_then(|token| token.parse::<u32>().ok());
+
+        let Some(hop_num) = hop else {
+            continue;
+        };
+
+        for ip in extract_ips_from_line(trimmed) {
+            let ip_text = ip.to_string();
+            if !seen.insert((hop_num, ip_text.clone())) {
+                continue;
+            }
+
+            let ip_type = classify_ip(&ip);
+            let reverse = reverse_dns_lookup(&ip).unwrap_or_else(|| "N/A".to_string());
+            let extra = ip_cache
+                .entry(ip)
+                .or_insert_with(|| fetch_ip_extra_info(&ip));
+
+            rows.push([
+                hop_num.to_string(),
+                ip_text,
+                ip_type.to_string(),
+                reverse,
+                extra.asn.clone(),
+                extra.org.clone(),
+                extra.geo.clone(),
+            ]);
+        }
+    }
+
+    if rows.is_empty() {
+        return String::new();
+    }
+
+    let headers = ["Hop", "IP", "Type", "Reverse DNS", "ASN", "Org", "Geo"];
+    let widths = [5usize, 39, 14, 28, 12, 24, 28];
+
+    let separator = format!(
+        "+{}+",
+        widths
+            .iter()
+            .map(|width| "-".repeat(*width + 2))
+            .collect::<Vec<_>>()
+            .join("+")
+    );
+
+    let mut lines = vec![separator.clone()];
+    lines.push(format_ascii_table_row(&headers, &widths));
+    lines.push(separator.clone());
+
+    for row in rows {
+        lines.push(format_ascii_table_row(
+            &[
+                row[0].as_str(),
+                row[1].as_str(),
+                row[2].as_str(),
+                row[3].as_str(),
+                row[4].as_str(),
+                row[5].as_str(),
+                row[6].as_str(),
+            ],
+            &widths,
+        ));
+    }
+
+    lines.push(separator);
+    lines.join("\n")
+}
+
+fn format_ascii_table_row(columns: &[&str], widths: &[usize]) -> String {
+    let cells = columns
+        .iter()
+        .zip(widths.iter())
+        .map(|(value, width)| {
+            format!(
+                " {:width$} ",
+                truncate_for_table(value, *width),
+                width = *width
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("|");
+
+    format!("|{}|", cells)
+}
+
+fn truncate_for_table(value: &str, max_width: usize) -> String {
+    let chars = value.chars().collect::<Vec<_>>();
+    if chars.len() <= max_width {
+        return value.to_string();
+    }
+
+    if max_width <= 3 {
+        return chars.into_iter().take(max_width).collect();
+    }
+
+    let mut truncated = chars.into_iter().take(max_width - 3).collect::<String>();
+    truncated.push_str("...");
+    truncated
+}
+
+#[derive(Debug, Clone)]
+struct IpExtraInfo {
+    asn: String,
+    org: String,
+    geo: String,
+}
+
+impl IpExtraInfo {
+    fn unavailable() -> Self {
+        Self {
+            asn: "N/A".to_string(),
+            org: "N/A".to_string(),
+            geo: "N/A".to_string(),
+        }
+    }
+}
+
+fn extract_ips_from_line(line: &str) -> Vec<IpAddr> {
+    let mut ips = Vec::new();
+    let mut seen = HashSet::new();
+
+    for token in line.split(|c: char| c.is_whitespace() || "(),;[]".contains(c)) {
+        let candidate = token.trim();
+        if candidate.is_empty() {
+            continue;
+        }
+
+        if let Ok(ip) = candidate.parse::<IpAddr>() {
+            let key = ip.to_string();
+            if seen.insert(key) {
+                ips.push(ip);
+            }
+        }
+    }
+
+    ips
+}
+
+fn classify_ip(ip: &IpAddr) -> &'static str {
+    match ip {
+        IpAddr::V4(v4) => {
+            if v4.is_private() {
+                "private"
+            } else if v4.is_loopback() {
+                "loopback"
+            } else if v4.is_link_local() {
+                "link-local"
+            } else if v4.is_multicast() {
+                "multicast"
+            } else if v4.is_unspecified() {
+                "unspecified"
+            } else {
+                "public"
+            }
+        }
+        IpAddr::V6(v6) => {
+            if is_ipv6_unique_local(v6) {
+                "unique-local"
+            } else if is_ipv6_loopback(v6) {
+                "loopback"
+            } else if is_ipv6_unicast_link_local(v6) {
+                "link-local"
+            } else if is_ipv6_multicast(v6) {
+                "multicast"
+            } else if is_ipv6_unspecified(v6) {
+                "unspecified"
+            } else {
+                "global"
+            }
+        }
+    }
+}
+
+fn fetch_ip_extra_info(ip: &IpAddr) -> IpExtraInfo {
+    if !is_globally_routable_ip(ip) {
+        return IpExtraInfo {
+            asn: "N/A (non-public)".to_string(),
+            org: "N/A (non-public)".to_string(),
+            geo: "N/A (non-public)".to_string(),
+        };
+    }
+
+    let url = format!("https://ipwho.is/{}", ip);
+    let output = match Command::new("curl")
+        .args(["-sS", "--connect-timeout", "2", "--max-time", "3", &url])
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .output()
+    {
+        Ok(output) => output,
+        Err(_) => return IpExtraInfo::unavailable(),
+    };
+
+    if !output.status.success() {
+        return IpExtraInfo::unavailable();
+    }
+
+    let payload = String::from_utf8_lossy(&output.stdout);
+    let parsed: Value = match serde_json::from_str(&payload) {
+        Ok(value) => value,
+        Err(_) => return IpExtraInfo::unavailable(),
+    };
+
+    if parsed.get("success").and_then(Value::as_bool) == Some(false) {
+        return IpExtraInfo::unavailable();
+    }
+
+    let asn = parsed
+        .get("connection")
+        .and_then(|v| v.get("asn"))
+        .and_then(Value::as_u64)
+        .map(|n| format!("AS{}", n))
+        .unwrap_or_else(|| "N/A".to_string());
+
+    let org = parsed
+        .get("connection")
+        .and_then(|v| v.get("org"))
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("N/A")
+        .to_string();
+
+    let country = parsed
+        .get("country")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("-");
+    let region = parsed
+        .get("region")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("-");
+    let city = parsed
+        .get("city")
+        .and_then(Value::as_str)
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+        .unwrap_or("-");
+
+    let geo = format!("{}, {}, {}", country, region, city);
+
+    IpExtraInfo { asn, org, geo }
+}
+
+fn is_globally_routable_ip(ip: &IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(v4) => {
+            !v4.is_private()
+                && !v4.is_loopback()
+                && !v4.is_link_local()
+                && !v4.is_multicast()
+                && !v4.is_unspecified()
+                && !v4.is_broadcast()
+                && !v4.is_documentation()
+        }
+        IpAddr::V6(v6) => {
+            !is_ipv6_loopback(v6)
+                && !is_ipv6_multicast(v6)
+                && !is_ipv6_unspecified(v6)
+                && !is_ipv6_unique_local(v6)
+                && !is_ipv6_unicast_link_local(v6)
+                && !is_ipv6_documentation(v6)
+        }
+    }
+}
+
+fn is_ipv6_unspecified(v6: &std::net::Ipv6Addr) -> bool {
+    v6.segments().iter().all(|segment| *segment == 0)
+}
+
+fn is_ipv6_loopback(v6: &std::net::Ipv6Addr) -> bool {
+    let segments = v6.segments();
+    segments[..7].iter().all(|segment| *segment == 0) && segments[7] == 1
+}
+
+fn is_ipv6_multicast(v6: &std::net::Ipv6Addr) -> bool {
+    (v6.segments()[0] & 0xff00) == 0xff00
+}
+
+fn is_ipv6_unicast_link_local(v6: &std::net::Ipv6Addr) -> bool {
+    (v6.segments()[0] & 0xffc0) == 0xfe80
+}
+
+fn is_ipv6_unique_local(v6: &std::net::Ipv6Addr) -> bool {
+    (v6.segments()[0] & 0xfe00) == 0xfc00
+}
+
+fn is_ipv6_documentation(v6: &std::net::Ipv6Addr) -> bool {
+    let segments = v6.segments();
+    segments[0] == 0x2001 && segments[1] == 0x0db8
+}
+
+fn reverse_dns_lookup(ip: &IpAddr) -> Option<String> {
+    let output = Command::new("nslookup")
+        .arg(ip.to_string())
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::null())
+        .output()
+        .ok()?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    for line in stdout.lines() {
+        let lower = line.to_lowercase();
+
+        if let Some((_, value)) = lower.split_once("name =") {
+            let original_value = &line[line.len() - value.len()..];
+            return Some(
+                original_value
+                    .trim()
+                    .trim_end_matches('.')
+                    .to_string(),
+            );
+        }
+
+        if lower.trim_start().starts_with("name:") {
+            let value = line
+                .split_once(':')
+                .map(|(_, v)| v.trim().trim_end_matches('.').to_string())
+                .unwrap_or_default();
+            if !value.is_empty() {
+                return Some(value);
+            }
+        }
+    }
+
+    None
 }
 
 fn extract_pem_certificates(text: &str) -> Vec<String> {
@@ -1690,7 +2102,8 @@ fn main() {
             json_to_class,
             remove_background,
             openssl_cert_detail,
-            openssl_cert_detail_from_url
+            openssl_cert_detail_from_url,
+            run_traceroute
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

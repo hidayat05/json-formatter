@@ -85,7 +85,8 @@ h1 {
 #converterSection,
 #compareSection,
 #mermaidSection,
-#opensslSection {
+#opensslSection,
+#tracerouteSection {
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -419,6 +420,10 @@ button:active:not(:disabled):not(.primary):not(.secondary):not(.success) {
     flex: 1 1 50%;
 }
 
+#tracerouteSection .editor-container {
+    grid-template-columns: 1fr;
+}
+
 #compareSection .diff-panel {
     flex: 1 1 50%;
     min-height: 0;
@@ -428,6 +433,13 @@ button:active:not(:disabled):not(.primary):not(.secondary):not(.success) {
     display: flex;
     flex-direction: column;
     min-height: 0;
+}
+
+.traceroute-output-shell {
+    position: relative;
+    flex: 1;
+    min-height: 0;
+    display: flex;
 }
 
 .editor-header {
@@ -492,6 +504,92 @@ textarea:focus {
 
 textarea.output {
     background: #e0e5ec;
+}
+
+.traceroute-output-shell textarea {
+    height: 100%;
+}
+
+.traceroute-loading {
+    position: absolute;
+    inset: 0;
+    border-radius: 10px;
+    padding: 18px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    background: #e0e5ec;
+    box-shadow:
+        inset 4px 4px 8px rgba(163, 177, 198, 0.6),
+        inset -4px -4px 8px rgba(255, 255, 255, 0.5);
+    overflow: hidden;
+}
+
+.traceroute-loading-label {
+    position: relative;
+    z-index: 1;
+    font-size: 14px;
+    font-weight: 700;
+    color: #5a6a7d;
+    letter-spacing: 0.02em;
+    margin-bottom: 4px;
+}
+
+.traceroute-loading.hidden {
+    display: none;
+}
+
+.traceroute-loading::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    left: -40%;
+    width: 40%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0),
+        rgba(255, 255, 255, 0.55),
+        rgba(255, 255, 255, 0)
+    );
+    animation: tracerouteShimmer 1.3s linear infinite;
+}
+
+.traceroute-loading-line {
+    position: relative;
+    z-index: 1;
+    height: 14px;
+    border-radius: 999px;
+    background: linear-gradient(145deg, #cfd7e2, #dfe5ee);
+    box-shadow:
+        inset 2px 2px 4px rgba(163, 177, 198, 0.35),
+        inset -2px -2px 4px rgba(255, 255, 255, 0.4);
+}
+
+.traceroute-loading-line.short {
+    width: 24%;
+}
+
+.traceroute-loading-line.medium {
+    width: 54%;
+}
+
+.traceroute-loading-line.long {
+    width: 72%;
+}
+
+.traceroute-loading-line.full {
+    width: 100%;
+}
+
+@keyframes tracerouteShimmer {
+    from {
+        left: -40%;
+    }
+
+    to {
+        left: 100%;
+    }
 }
 
 .status-message {

@@ -12,11 +12,13 @@ const compareTabBtn = document.getElementById("compareTabBtn");
 const mermaidTabBtn = document.getElementById("mermaidTabBtn");
 const imageResizerTabBtn = document.getElementById("imageResizerTabBtn");
 const opensslTabBtn = document.getElementById("opensslTabBtn");
+const tracerouteTabBtn = document.getElementById("tracerouteTabBtn");
 const converterSection = document.getElementById("converterSection");
 const compareSection = document.getElementById("compareSection");
 const mermaidSection = document.getElementById("mermaidSection");
 const imageResizerSection = document.getElementById("imageResizerSection");
 const opensslSection = document.getElementById("opensslSection");
+const tracerouteSection = document.getElementById("tracerouteSection");
 
 const compareLeft = document.getElementById("compareLeft");
 const compareRight = document.getElementById("compareRight");
@@ -26,6 +28,12 @@ const opensslInput = document.getElementById("opensslInput");
 const opensslOutput = document.getElementById("opensslOutput");
 const opensslUrlInput = document.getElementById("opensslUrlInput");
 const opensslChainMode = document.getElementById("opensslChainMode");
+const tracerouteUrlInput = document.getElementById("tracerouteUrlInput");
+const tracerouteOutput = document.getElementById("tracerouteOutput");
+const tracerouteLoading = document.getElementById("tracerouteLoading");
+const runTracerouteBtn = document.getElementById("runTracerouteBtn");
+const clearTracerouteBtn = document.getElementById("clearTracerouteBtn");
+const copyTracerouteOutputBtn = document.getElementById("copyTracerouteOutputBtn");
 
 // Mermaid elements
 const mermaidInput = document.getElementById("mermaidInput");
@@ -226,18 +234,21 @@ function setActiveTab(tab) {
   const isMermaid = tab === "mermaid";
   const isImageResizer = tab === "imageResizer";
   const isOpenssl = tab === "openssl";
+  const isTraceroute = tab === "traceroute";
 
   converterSection.classList.toggle("hidden", !isConverter);
   compareSection.classList.toggle("hidden", !isCompare);
   mermaidSection.classList.toggle("hidden", !isMermaid);
   imageResizerSection.classList.toggle("hidden", !isImageResizer);
   opensslSection.classList.toggle("hidden", !isOpenssl);
+  tracerouteSection.classList.toggle("hidden", !isTraceroute);
 
   converterTabBtn.classList.toggle("active", isConverter);
   compareTabBtn.classList.toggle("active", isCompare);
   mermaidTabBtn.classList.toggle("active", isMermaid);
   imageResizerTabBtn.classList.toggle("active", isImageResizer);
   opensslTabBtn.classList.toggle("active", isOpenssl);
+  tracerouteTabBtn.classList.toggle("active", isTraceroute);
 }
 
 function showStatus(message, isError = false) {
@@ -396,6 +407,7 @@ function handleClear() {
   classNameInput.value = "";
   handleCompareClear();
   handleClearOpenssl();
+  handleClearTraceroute();
 }
 
 async function handleOpensslDetail() {
@@ -442,6 +454,61 @@ function handleClearOpenssl() {
   opensslInput.value = "";
   opensslOutput.value = "";
   opensslChainMode.value = "full";
+}
+
+function setTracerouteLoadingState(isLoading) {
+  tracerouteLoading.classList.toggle("hidden", !isLoading);
+  tracerouteOutput.classList.toggle("hidden", isLoading);
+  tracerouteUrlInput.disabled = isLoading;
+  runTracerouteBtn.disabled = isLoading;
+  clearTracerouteBtn.disabled = isLoading;
+  copyTracerouteOutputBtn.disabled = isLoading || !tracerouteOutput.value;
+  runTracerouteBtn.textContent = isLoading ? "Running..." : "Run Traceroute";
+}
+
+async function handleTraceroute() {
+  const urlInput = tracerouteUrlInput.value.trim();
+  if (!urlInput) {
+    showStatus("Please enter a URL or host for traceroute", true);
+    return;
+  }
+
+  tracerouteOutput.value = "";
+  setTracerouteLoadingState(true);
+
+  try {
+    const result = await invoke("run_traceroute", { urlInput });
+    tracerouteOutput.value = result;
+    showStatus("✓ Traceroute completed successfully");
+  } catch (error) {
+    tracerouteOutput.value = "";
+    showStatus(`Error: ${error}`, true);
+  } finally {
+    setTracerouteLoadingState(false);
+  }
+}
+
+function handleClearTraceroute() {
+  tracerouteUrlInput.value = "";
+  tracerouteOutput.value = "";
+  setTracerouteLoadingState(false);
+}
+
+async function handleCopyTracerouteOutput() {
+  if (!tracerouteOutput.value) return;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(tracerouteOutput.value);
+      showStatus("✓ Traceroute output copied to clipboard");
+    } else {
+      await invoke("plugin:clipboard-manager|write_text", {
+        text: tracerouteOutput.value,
+      });
+      showStatus("✓ Traceroute output copied to clipboard");
+    }
+  } catch (error) {
+    showStatus(`Error: Failed to copy - ${error}`, true);
+  }
 }
 
 async function handleCopyOpensslInput() {
@@ -1107,6 +1174,7 @@ imageResizerTabBtn.addEventListener("click", () =>
   setActiveTab("imageResizer"),
 );
 opensslTabBtn.addEventListener("click", () => setActiveTab("openssl"));
+tracerouteTabBtn.addEventListener("click", () => setActiveTab("traceroute"));
 
 // Mermaid event listeners
 document
@@ -1165,11 +1233,27 @@ document
 document
   .getElementById("copyOpensslOutputBtn")
   .addEventListener("click", handleCopyOpensslOutput);
+document
+  runTracerouteBtn
+  .addEventListener("click", handleTraceroute);
+document
+  clearTracerouteBtn
+  .addEventListener("click", handleClearTraceroute);
+document
+  copyTracerouteOutputBtn
+  .addEventListener("click", handleCopyTracerouteOutput);
 
 opensslUrlInput.addEventListener("keydown", (e) => {
   if (e.key === "Enter") {
     e.preventDefault();
     handleOpensslDetailFromUrl();
+  }
+});
+
+tracerouteUrlInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    handleTraceroute();
   }
 });
 
@@ -1244,3 +1328,4 @@ document.addEventListener("keydown", (e) => {
 
 setActiveTab("converter");
 renderDiffHtml(EMPTY_DIFF_HTML);
+setTracerouteLoadingState(false);
