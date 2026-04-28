@@ -36,6 +36,9 @@
                 <button id="tracerouteTabBtn" class="tab-button">
                     Traceroute
                 </button>
+                <button id="jsonHtmlTabBtn" class="tab-button">
+                    JSON to HTML
+                </button>
             </div>
 
             <div id="converterSection">
@@ -501,6 +504,63 @@ graph TD
                                 <div class="traceroute-loading-line full"></div>
                                 <div class="traceroute-loading-line long"></div>
                                 <div class="traceroute-loading-line medium"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="jsonHtmlSection" class="hidden">
+                <div class="button-group">
+                    <button class="primary" id="renderHtmlBtn">Render HTML</button>
+                    <button class="secondary" id="formatJsonHtmlBtn">Format JSON</button>
+                    <button class="secondary" id="copyHtmlResultBtn">
+                        📋 Copy Result
+                    </button>
+                    <button class="danger" id="clearHtmlBtn">Clear All</button>
+                </div>
+
+                <div class="json-html-container">
+                    <div class="json-html-top">
+                        <div class="editor-section">
+                            <div class="editor-header">
+                                <span class="editor-label">JSON Data</span>
+                                <button class="copy-button" id="copyJsonHtmlBtn">
+                                    📋 Copy
+                                </button>
+                            </div>
+                            <textarea
+                                id="jsonHtmlInput"
+                                placeholder='Enter JSON data here... e.g. {"name": "John", "age": 30}'
+                            ></textarea>
+                        </div>
+                    </div>
+
+                    <div class="json-html-middle">
+                        <div class="editor-section">
+                            <div class="editor-header">
+                                <span class="editor-label">HTML Template (use {{key}} for JSON values)</span>
+                                <button class="copy-button" id="copyTemplateBtn">
+                                    📋 Copy
+                                </button>
+                            </div>
+                            <textarea
+                                id="htmlTemplate"
+                                placeholder='Enter HTML template here... e.g. <h1>{{name}}</h1><p>Age: {{age}}</p>'
+                            ></textarea>
+                        </div>
+
+                        <div class="editor-section">
+                            <div class="editor-header">
+                                <span class="editor-label">Result Preview</span>
+                                <button class="copy-button" id="copyResultHtmlBtn">
+                                    📋 Copy
+                                </button>
+                            </div>
+                            <div id="htmlResult" class="html-result-preview">
+                                <div class="placeholder">
+                                    Result will appear here after rendering
+                                </div>
                             </div>
                         </div>
                     </div>

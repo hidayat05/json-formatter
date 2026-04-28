@@ -1109,29 +1109,44 @@ fn json_to_string(input: String) -> Result<String, String> {
 /// Convert an escaped string back to JSON (parse JSON string literal)
 #[tauri::command]
 fn string_to_json(input: String) -> Result<String, String> {
-    if input.trim().is_empty() {
+    let trimmed = input.trim();
+
+    if trimmed.is_empty() {
         return Err("Input is empty".to_string());
     }
 
-    // Try to parse as a JSON string literal first
-    if input.starts_with('"') && input.ends_with('"') {
-        let unescaped: String = serde_json::from_str(&input)
-            .map_err(|e| format!("Invalid JSON string literal: {}", e))?;
+    // Accept multiple common inputs:
+    // 1) regular JSON object/array
+    // 2) JSON string literal containing escaped JSON
+    // 3) escaped JSON without wrapping quotes, e.g. {\"a\":1}
+    let candidates = [trimmed, trimmed.trim_matches('"')];
 
-        // Validate that the unescaped content is valid JSON
-        let parsed: Value = serde_json::from_str(&unescaped)
-            .map_err(|e| format!("Unescaped content is not valid JSON: {}", e))?;
+    for candidate in candidates {
+        if candidate.is_empty() {
+            continue;
+        }
 
-        // Return it formatted
-        return serde_json::to_string_pretty(&parsed)
-            .map_err(|e| format!("Failed to format: {}", e));
+        if let Ok(value) = serde_json::from_str::<Value>(candidate) {
+            let parsed = match value {
+                Value::String(unescaped) => serde_json::from_str::<Value>(unescaped.trim())
+                    .map_err(|e| format!("String content is not valid JSON: {}", e))?,
+                other => other,
+            };
+
+            return serde_json::to_string_pretty(&parsed)
+                .map_err(|e| format!("Failed to format: {}", e));
+        }
+
+        let wrapped = format!("\"{}\"", candidate);
+        if let Ok(unescaped) = serde_json::from_str::<String>(&wrapped) {
+            if let Ok(parsed) = serde_json::from_str::<Value>(unescaped.trim()) {
+                return serde_json::to_string_pretty(&parsed)
+                    .map_err(|e| format!("Failed to format: {}", e));
+            }
+        }
     }
 
-    // If not a JSON string literal, return error with helpful message
-    Err(
-        "Input must be a JSON string literal (enclosed in double quotes with escaped content)"
-            .to_string(),
-    )
+    Err("Input must be valid JSON or escaped JSON string".to_string())
 }
 
 /// Convert JSON to Protocol Buffers (proto3) schema
@@ -2147,6 +2162,23 @@ mod tests {
         let result = string_to_json(input).unwrap();
         assert!(result.contains("\"name\""));
         assert!(result.contains("\"John\""));
+    }
+
+    #[test]
+    fn test_string_to_json_escaped_without_wrapper_quotes() {
+        let input = r#"{\"name\":\"John\",\"age\":30}"#.to_string();
+        let result = string_to_json(input).unwrap();
+        let parsed: Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["name"], "John");
+        assert_eq!(parsed["age"], 30);
+    }
+
+    #[test]
+    fn test_string_to_json_with_one_sided_quote() {
+        let input = r#"{\"name\":\"John\"}""#.to_string();
+        let result = string_to_json(input).unwrap();
+        let parsed: Value = serde_json::from_str(&result).unwrap();
+        assert_eq!(parsed["name"], "John");
     }
 
     #[test]

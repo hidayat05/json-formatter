@@ -13,12 +13,14 @@ const mermaidTabBtn = document.getElementById("mermaidTabBtn");
 const imageResizerTabBtn = document.getElementById("imageResizerTabBtn");
 const opensslTabBtn = document.getElementById("opensslTabBtn");
 const tracerouteTabBtn = document.getElementById("tracerouteTabBtn");
+const jsonHtmlTabBtn = document.getElementById("jsonHtmlTabBtn");
 const converterSection = document.getElementById("converterSection");
 const compareSection = document.getElementById("compareSection");
 const mermaidSection = document.getElementById("mermaidSection");
 const imageResizerSection = document.getElementById("imageResizerSection");
 const opensslSection = document.getElementById("opensslSection");
 const tracerouteSection = document.getElementById("tracerouteSection");
+const jsonHtmlSection = document.getElementById("jsonHtmlSection");
 
 const compareLeft = document.getElementById("compareLeft");
 const compareRight = document.getElementById("compareRight");
@@ -34,6 +36,18 @@ const tracerouteLoading = document.getElementById("tracerouteLoading");
 const runTracerouteBtn = document.getElementById("runTracerouteBtn");
 const clearTracerouteBtn = document.getElementById("clearTracerouteBtn");
 const copyTracerouteOutputBtn = document.getElementById("copyTracerouteOutputBtn");
+
+// JSON to HTML elements
+const jsonHtmlInput = document.getElementById("jsonHtmlInput");
+const htmlTemplate = document.getElementById("htmlTemplate");
+const htmlResult = document.getElementById("htmlResult");
+const renderHtmlBtn = document.getElementById("renderHtmlBtn");
+const formatJsonHtmlBtn = document.getElementById("formatJsonHtmlBtn");
+const copyHtmlResultBtn = document.getElementById("copyHtmlResultBtn");
+const clearHtmlBtn = document.getElementById("clearHtmlBtn");
+const copyJsonHtmlBtn = document.getElementById("copyJsonHtmlBtn");
+const copyTemplateBtn = document.getElementById("copyTemplateBtn");
+const copyResultHtmlBtn = document.getElementById("copyResultHtmlBtn");
 
 // Mermaid elements
 const mermaidInput = document.getElementById("mermaidInput");
@@ -235,6 +249,7 @@ function setActiveTab(tab) {
   const isImageResizer = tab === "imageResizer";
   const isOpenssl = tab === "openssl";
   const isTraceroute = tab === "traceroute";
+  const isJsonHtml = tab === "jsonHtml";
 
   converterSection.classList.toggle("hidden", !isConverter);
   compareSection.classList.toggle("hidden", !isCompare);
@@ -242,6 +257,7 @@ function setActiveTab(tab) {
   imageResizerSection.classList.toggle("hidden", !isImageResizer);
   opensslSection.classList.toggle("hidden", !isOpenssl);
   tracerouteSection.classList.toggle("hidden", !isTraceroute);
+  jsonHtmlSection.classList.toggle("hidden", !isJsonHtml);
 
   converterTabBtn.classList.toggle("active", isConverter);
   compareTabBtn.classList.toggle("active", isCompare);
@@ -249,6 +265,7 @@ function setActiveTab(tab) {
   imageResizerTabBtn.classList.toggle("active", isImageResizer);
   opensslTabBtn.classList.toggle("active", isOpenssl);
   tracerouteTabBtn.classList.toggle("active", isTraceroute);
+  jsonHtmlTabBtn.classList.toggle("active", isJsonHtml);
 }
 
 function showStatus(message, isError = false) {
@@ -1123,6 +1140,154 @@ async function handleCopyMermaid() {
   }
 }
 
+// JSON to HTML Render Functions
+function renderJsonToHtml() {
+  const jsonText = jsonHtmlInput.value.trim();
+  const templateText = htmlTemplate.value.trim();
+
+  if (!jsonText) {
+    showStatus("Please enter JSON data", true);
+    return;
+  }
+
+  if (!templateText) {
+    showStatus("Please enter an HTML template", true);
+    return;
+  }
+
+  try {
+    // Parse JSON
+    const jsonData = JSON.parse(jsonText);
+
+    // Replace {{key}} placeholders with JSON values
+    let resultHtml = templateText;
+
+    // Recursive function to handle nested objects
+    const replaceValues = (obj, text) => {
+      for (const [key, value] of Object.entries(obj)) {
+        if (typeof value === "object" && value !== null && !Array.isArray(value)) {
+          // For nested objects, replace with flattened dot notation or direct replacement
+          text = text.replace(
+            new RegExp(`{{\\s*${key}\\s*}}`, "g"),
+            escapeHtml(JSON.stringify(value))
+          );
+          // Also try nested replacements like {{key.subkey}}
+          text = replaceValues(value, text);
+        } else if (Array.isArray(value)) {
+          // For arrays, convert to string or JSON
+          text = text.replace(
+            new RegExp(`{{\\s*${key}\\s*}}`, "g"),
+            escapeHtml(JSON.stringify(value))
+          );
+        } else {
+          // For simple values, just replace
+          text = text.replace(
+            new RegExp(`{{\\s*${key}\\s*}}`, "g"),
+            escapeHtml(String(value))
+          );
+        }
+      }
+      return text;
+    };
+
+    resultHtml = replaceValues(jsonData, resultHtml);
+
+    // Display result
+    htmlResult.innerHTML = resultHtml;
+    showStatus("✓ HTML rendered successfully!");
+  } catch (error) {
+    showStatus(`Error: ${error.message}`, true);
+    htmlResult.innerHTML = `<div class="placeholder"><span style="color: red;">Error: ${escapeHtml(error.message)}</span></div>`;
+  }
+}
+
+function handleRenderHtml() {
+  renderJsonToHtml();
+}
+
+async function handleFormatJsonHtml() {
+  const jsonText = jsonHtmlInput.value.trim();
+
+  if (!jsonText) {
+    showStatus("Please enter JSON data", true);
+    return;
+  }
+
+  try {
+    const result = await invoke("format_json", { input: jsonText });
+    jsonHtmlInput.value = result;
+    showStatus("✓ JSON data formatted successfully");
+  } catch (error) {
+    showStatus(`Error: ${error}`, true);
+  }
+}
+
+function handleClearHtml() {
+  jsonHtmlInput.value = "";
+  htmlTemplate.value = "";
+  htmlResult.innerHTML =
+    '<div class="placeholder">Result will appear here after rendering</div>';
+  showStatus("JSON to HTML cleared!");
+}
+
+async function handleCopyJsonHtml() {
+  if (jsonHtmlInput.value) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(jsonHtmlInput.value);
+        showStatus("✓ JSON data copied to clipboard");
+      } else {
+        await invoke("plugin:clipboard-manager|write_text", {
+          text: jsonHtmlInput.value,
+        });
+        showStatus("✓ JSON data copied to clipboard");
+      }
+    } catch (error) {
+      showStatus(`Error: Failed to copy - ${error}`, true);
+    }
+  }
+}
+
+async function handleCopyTemplate() {
+  if (htmlTemplate.value) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(htmlTemplate.value);
+        showStatus("✓ HTML template copied to clipboard");
+      } else {
+        await invoke("plugin:clipboard-manager|write_text", {
+          text: htmlTemplate.value,
+        });
+        showStatus("✓ HTML template copied to clipboard");
+      }
+    } catch (error) {
+      showStatus(`Error: Failed to copy - ${error}`, true);
+    }
+  }
+}
+
+async function handleCopyResultHtml() {
+  if (htmlResult.innerHTML && htmlResult.innerHTML !== '<div class="placeholder">Result will appear here after rendering</div>') {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(htmlResult.innerHTML);
+        showStatus("✓ HTML result copied to clipboard");
+      } else {
+        await invoke("plugin:clipboard-manager|write_text", {
+          text: htmlResult.innerHTML,
+        });
+        showStatus("✓ HTML result copied to clipboard");
+      }
+    } catch (error) {
+      showStatus(`Error: Failed to copy - ${error}`, true);
+    }
+  }
+}
+
+async function handleCopyHtmlResult() {
+  await handleCopyResultHtml();
+}
+
 // Event listeners
 document.getElementById("minifyBtn").addEventListener("click", handleMinify);
 document.getElementById("formatBtn").addEventListener("click", handleFormat);
@@ -1175,6 +1340,7 @@ imageResizerTabBtn.addEventListener("click", () =>
 );
 opensslTabBtn.addEventListener("click", () => setActiveTab("openssl"));
 tracerouteTabBtn.addEventListener("click", () => setActiveTab("traceroute"));
+jsonHtmlTabBtn.addEventListener("click", () => setActiveTab("jsonHtml"));
 
 // Mermaid event listeners
 document
@@ -1189,6 +1355,43 @@ document
 document
   .getElementById("copyMermaidBtn")
   .addEventListener("click", handleCopyMermaid);
+
+// JSON to HTML event listeners
+document
+  .getElementById("renderHtmlBtn")
+  .addEventListener("click", handleRenderHtml);
+formatJsonHtmlBtn.addEventListener("click", handleFormatJsonHtml);
+document
+  .getElementById("clearHtmlBtn")
+  .addEventListener("click", handleClearHtml);
+document
+  .getElementById("copyJsonHtmlBtn")
+  .addEventListener("click", handleCopyJsonHtml);
+document
+  .getElementById("copyTemplateBtn")
+  .addEventListener("click", handleCopyTemplate);
+document
+  .getElementById("copyResultHtmlBtn")
+  .addEventListener("click", handleCopyResultHtml);
+document
+  .getElementById("copyHtmlResultBtn")
+  .addEventListener("click", handleCopyHtmlResult);
+
+// Auto-render on Enter key for JSON input
+jsonHtmlInput.addEventListener("keydown", (e) => {
+  if (e.ctrlKey && e.key === "Enter") {
+    e.preventDefault();
+    handleRenderHtml();
+  }
+});
+
+// Auto-render on Enter key for template input
+htmlTemplate.addEventListener("keydown", (e) => {
+  if (e.ctrlKey && e.key === "Enter") {
+    e.preventDefault();
+    handleRenderHtml();
+  }
+});
 
 // Zoom event listeners
 zoomInBtn.addEventListener("click", handleZoomIn);
