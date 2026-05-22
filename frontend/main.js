@@ -296,6 +296,22 @@ function handleBeautifyCompare(side) {
   }
 }
 
+function handleSortKeysCompare(side) {
+  try {
+    if (side === "left") {
+      const sorted = sortKeys(JSON.parse(compareLeft.value));
+      compareLeft.value = JSON.stringify(sorted, null, 2);
+      showStatus("✓ Left JSON keys sorted recursively");
+    } else {
+      const sorted = sortKeys(JSON.parse(compareRight.value));
+      compareRight.value = JSON.stringify(sorted, null, 2);
+      showStatus("✓ Right JSON keys sorted recursively");
+    }
+  } catch (error) {
+    showStatus(`Error: ${error}`, true);
+  }
+}
+
 function handleCompare() {
   try {
     const leftFormatted = normalizedJson(compareLeft.value);
@@ -1344,6 +1360,12 @@ document
 document
   .getElementById("beautifyRightBtn")
   .addEventListener("click", () => handleBeautifyCompare("right"));
+document
+  .getElementById("sortKeysLeftBtn")
+  .addEventListener("click", () => handleSortKeysCompare("left"));
+document
+  .getElementById("sortKeysRightBtn")
+  .addEventListener("click", () => handleSortKeysCompare("right"));
 document.getElementById("compareBtn").addEventListener("click", handleCompare);
 converterTabBtn.addEventListener("click", () => setActiveTab("converter"));
 compareTabBtn.addEventListener("click", () => setActiveTab("compare"));
