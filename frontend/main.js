@@ -342,6 +342,18 @@ async function handleFormat() {
   }
 }
 
+function handleSortKeys() {
+  try {
+    const parsed = JSON.parse(inputText.value);
+    const sorted = sortKeys(parsed);
+    outputText.value = JSON.stringify(sorted, null, 2);
+    showStatus("✓ JSON keys sorted recursively");
+  } catch (error) {
+    outputText.value = "";
+    showStatus(`Error: ${error}`, true);
+  }
+}
+
 async function handleJsonToString() {
   try {
     const result = await invoke("json_to_string", { input: inputText.value });
@@ -1291,6 +1303,7 @@ async function handleCopyHtmlResult() {
 // Event listeners
 document.getElementById("minifyBtn").addEventListener("click", handleMinify);
 document.getElementById("formatBtn").addEventListener("click", handleFormat);
+document.getElementById("sortKeysBtn").addEventListener("click", handleSortKeys);
 document
   .getElementById("jsonToStringBtn")
   .addEventListener("click", handleJsonToString);
