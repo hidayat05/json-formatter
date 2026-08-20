@@ -94,7 +94,7 @@ cargo tauri build
 ```
 The built application will be in `src-tauri/target/release/bundle/`:
 - **Linux**: `.deb`, `.AppImage`
-- **macOS**: `.dmg`, `.app`
+- **macOS**: `.dmg`, `.app` (See [INSTALL_MAC.md](INSTALL_MAC.md) for resolving Gatekeeper verification warnings)
 - **Windows**: `.msi`, `.exe`
 
 ## Usage
