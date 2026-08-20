@@ -14,6 +14,7 @@ const imageResizerTabBtn = document.getElementById("imageResizerTabBtn");
 const opensslTabBtn = document.getElementById("opensslTabBtn");
 const tracerouteTabBtn = document.getElementById("tracerouteTabBtn");
 const jsonHtmlTabBtn = document.getElementById("jsonHtmlTabBtn");
+const urlTabBtn = document.getElementById("urlTabBtn");
 const converterSection = document.getElementById("converterSection");
 const compareSection = document.getElementById("compareSection");
 const mermaidSection = document.getElementById("mermaidSection");
@@ -21,6 +22,7 @@ const imageResizerSection = document.getElementById("imageResizerSection");
 const opensslSection = document.getElementById("opensslSection");
 const tracerouteSection = document.getElementById("tracerouteSection");
 const jsonHtmlSection = document.getElementById("jsonHtmlSection");
+const urlSection = document.getElementById("urlSection");
 
 const compareLeft = document.getElementById("compareLeft");
 const compareRight = document.getElementById("compareRight");
@@ -48,6 +50,22 @@ const clearHtmlBtn = document.getElementById("clearHtmlBtn");
 const copyJsonHtmlBtn = document.getElementById("copyJsonHtmlBtn");
 const copyTemplateBtn = document.getElementById("copyTemplateBtn");
 const copyResultHtmlBtn = document.getElementById("copyResultHtmlBtn");
+
+// URL Beautifier elements
+const urlInput = document.getElementById("urlInput");
+const urlProtocol = document.getElementById("urlProtocol");
+const urlHostname = document.getElementById("urlHostname");
+const urlPort = document.getElementById("urlPort");
+const urlPathname = document.getElementById("urlPathname");
+const urlHash = document.getElementById("urlHash");
+const urlParamsList = document.getElementById("urlParamsList");
+const urlAddParamBtn = document.getElementById("urlAddParamBtn");
+const urlBeautifyBtn = document.getElementById("urlBeautifyBtn");
+const urlEncodeBtn = document.getElementById("urlEncodeBtn");
+const urlDecodeBtn = document.getElementById("urlDecodeBtn");
+const urlReconstructBtn = document.getElementById("urlReconstructBtn");
+const urlClearBtn = document.getElementById("urlClearBtn");
+const copyUrlInputBtn = document.getElementById("copyUrlInputBtn");
 
 // Mermaid elements
 const mermaidInput = document.getElementById("mermaidInput");
@@ -311,6 +329,7 @@ function setActiveTab(tab) {
   const isOpenssl = tab === "openssl";
   const isTraceroute = tab === "traceroute";
   const isJsonHtml = tab === "jsonHtml";
+  const isUrl = tab === "url";
 
   converterSection.classList.toggle("hidden", !isConverter);
   compareSection.classList.toggle("hidden", !isCompare);
@@ -319,6 +338,7 @@ function setActiveTab(tab) {
   opensslSection.classList.toggle("hidden", !isOpenssl);
   tracerouteSection.classList.toggle("hidden", !isTraceroute);
   jsonHtmlSection.classList.toggle("hidden", !isJsonHtml);
+  urlSection.classList.toggle("hidden", !isUrl);
 
   converterTabBtn.classList.toggle("active", isConverter);
   compareTabBtn.classList.toggle("active", isCompare);
@@ -327,6 +347,7 @@ function setActiveTab(tab) {
   opensslTabBtn.classList.toggle("active", isOpenssl);
   tracerouteTabBtn.classList.toggle("active", isTraceroute);
   jsonHtmlTabBtn.classList.toggle("active", isJsonHtml);
+  urlTabBtn.classList.toggle("active", isUrl);
 }
 
 function showStatus(message, isError = false) {
@@ -1800,7 +1821,7 @@ if (mermaidSplitter && mermaidContainer && mermaidEditorSection) {
     const containerRect = mermaidContainer.getBoundingClientRect();
     const newWidth = e.clientX - containerRect.left;
 
-    const minWidth = 150;
+    const minWidth = 300;
     const maxWidth = containerRect.width - minWidth - 8; // 8px splitter width
 
     if (newWidth >= minWidth && newWidth <= maxWidth) {
@@ -1822,7 +1843,7 @@ if (mermaidSplitter && mermaidContainer && mermaidEditorSection) {
     if (mermaidEditorSection.style.flex === "none") {
       const containerRect = mermaidContainer.getBoundingClientRect();
       const currentWidth = parseFloat(mermaidEditorSection.style.width);
-      const minWidth = 150;
+      const minWidth = 300;
       const maxWidth = containerRect.width - minWidth - 8;
       if (currentWidth > maxWidth) {
         mermaidEditorSection.style.width = `${Math.max(minWidth, maxWidth)}px`;
@@ -1901,6 +1922,235 @@ if (mermaidThemeSelect) {
 if (zoomFitBtn) {
   zoomFitBtn.addEventListener("click", handleZoomFit);
 }
+
+// URL Beautifier functions
+
+function parseUrl(urlStr) {
+  try {
+    let cleanUrl = urlStr.trim();
+    if (!/^[a-zA-Z]+:\/\//.test(cleanUrl) && !cleanUrl.startsWith("//")) {
+      cleanUrl = "http://" + cleanUrl;
+    }
+
+    const parsed = new URL(cleanUrl);
+    return {
+      protocol: parsed.protocol,
+      hostname: parsed.hostname,
+      port: parsed.port,
+      pathname: parsed.pathname,
+      search: parsed.search,
+      hash: parsed.hash,
+      username: parsed.username,
+      password: parsed.password
+    };
+  } catch (e) {
+    throw new Error("Invalid URL format: " + e.message);
+  }
+}
+
+function renderUrlComponents(components) {
+  urlProtocol.value = components.protocol || "";
+  urlHostname.value = components.hostname || "";
+  urlPort.value = components.port || "";
+  urlPathname.value = components.pathname || "";
+  urlHash.value = components.hash || "";
+
+  // Parse search params
+  const searchParams = new URLSearchParams(components.search);
+  urlParamsList.innerHTML = "";
+
+  let count = 0;
+  for (const [key, value] of searchParams.entries()) {
+    addParamRow(key, value);
+    count++;
+  }
+
+  if (count === 0) {
+    urlParamsList.innerHTML = '<div class="params-placeholder">No query parameters found</div>';
+  }
+}
+
+function addParamRow(key = "", value = "") {
+  const placeholder = urlParamsList.querySelector(".params-placeholder");
+  if (placeholder) {
+    placeholder.remove();
+  }
+
+  const row = document.createElement("div");
+  row.className = "url-param-row";
+  row.innerHTML = `
+    <input type="text" class="param-key" placeholder="Key" value="${escapeHtml(key)}" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off" />
+    <input type="text" class="param-value" placeholder="Value" value="${escapeHtml(value)}" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off" />
+    <button class="copy-mini-btn" title="Copy Value">📋</button>
+    <button class="delete-mini-btn" title="Delete Parameter">✕</button>
+  `;
+
+  row.querySelector(".copy-mini-btn").addEventListener("click", async () => {
+    const keyText = row.querySelector(".param-key").value.trim();
+    const valText = row.querySelector(".param-value").value;
+    if (valText) {
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(valText);
+          showStatus(`✓ Value of parameter "${keyText || "unnamed"}" copied`);
+        } else {
+          await invoke("plugin:clipboard-manager|write_text", { text: valText });
+          showStatus(`✓ Value of parameter "${keyText || "unnamed"}" copied`);
+        }
+      } catch (e) {
+        showStatus("Failed to copy parameter value", true);
+      }
+    }
+  });
+
+  row.querySelector(".delete-mini-btn").addEventListener("click", () => {
+    row.remove();
+    if (urlParamsList.children.length === 0) {
+      urlParamsList.innerHTML = '<div class="params-placeholder">No query parameters found</div>';
+    }
+  });
+
+  urlParamsList.appendChild(row);
+}
+
+function handleUrlBeautify() {
+  const urlStr = urlInput.value.trim();
+  if (!urlStr) {
+    showStatus("Please enter a URL", true);
+    return;
+  }
+
+  try {
+    const components = parseUrl(urlStr);
+    renderUrlComponents(components);
+    showStatus("✓ URL parsed and beautified successfully");
+  } catch (err) {
+    showStatus(err.message, true);
+  }
+}
+
+function handleUrlEncode() {
+  const urlStr = urlInput.value.trim();
+  if (!urlStr) return;
+  urlInput.value = encodeURI(urlStr);
+  showStatus("✓ Entire URL encoded");
+}
+
+function handleUrlDecode() {
+  const urlStr = urlInput.value.trim();
+  if (!urlStr) return;
+  try {
+    urlInput.value = decodeURI(urlStr);
+    showStatus("✓ Entire URL decoded");
+  } catch (e) {
+    showStatus("Error decoding URL", true);
+  }
+}
+
+function handleUrlReconstruct() {
+  try {
+    const protocol = urlProtocol.value.trim();
+    const hostname = urlHostname.value.trim();
+    const port = urlPort.value.trim();
+    const pathname = urlPathname.value.trim();
+    const hash = urlHash.value.trim();
+
+    if (!hostname) {
+      showStatus("Hostname is required to reconstruct URL", true);
+      return;
+    }
+
+    // Build base URL
+    let url = "";
+    if (protocol) {
+      url += protocol;
+      if (!protocol.endsWith(":")) {
+        url += ":";
+      }
+      url += "//";
+    } else {
+      url += "http://";
+    }
+
+    url += hostname;
+    if (port) {
+      url += ":" + port;
+    }
+
+    if (pathname) {
+      if (!pathname.startsWith("/")) {
+        url += "/";
+      }
+      url += pathname;
+    }
+
+    // Build query params
+    const params = [];
+    const rows = urlParamsList.querySelectorAll(".url-param-row");
+    rows.forEach(row => {
+      const key = row.querySelector(".param-key").value.trim();
+      const val = row.querySelector(".param-value").value.trim();
+      if (key) {
+        params.push(`${encodeURIComponent(key)}=${encodeURIComponent(val)}`);
+      }
+    });
+
+    if (params.length > 0) {
+      url += "?" + params.join("&");
+    }
+
+    if (hash) {
+      if (!hash.startsWith("#")) {
+        url += "#";
+      }
+      url += hash;
+    }
+
+    urlInput.value = url;
+    showStatus("✓ URL reconstructed from components");
+  } catch (err) {
+    showStatus("Failed to reconstruct: " + err.message, true);
+  }
+}
+
+function handleUrlClear() {
+  urlInput.value = "";
+  urlProtocol.value = "";
+  urlHostname.value = "";
+  urlPort.value = "";
+  urlPathname.value = "";
+  urlHash.value = "";
+  urlParamsList.innerHTML = '<div class="params-placeholder">No query parameters found</div>';
+  showStatus("URL fields cleared");
+}
+
+async function handleCopyUrlInput() {
+  if (urlInput.value) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(urlInput.value);
+        showStatus("✓ URL copied to clipboard");
+      } else {
+        await invoke("plugin:clipboard-manager|write_text", { text: urlInput.value });
+        showStatus("✓ URL copied to clipboard");
+      }
+    } catch (e) {
+      showStatus("Failed to copy URL", true);
+    }
+  }
+}
+
+// URL tab listeners
+urlTabBtn.addEventListener("click", () => setActiveTab("url"));
+
+// URL Beautifier event listeners
+document.getElementById("urlBeautifyBtn").addEventListener("click", handleUrlBeautify);
+document.getElementById("urlEncodeBtn").addEventListener("click", handleUrlEncode);
+document.getElementById("urlDecodeBtn").addEventListener("click", handleUrlDecode);
+document.getElementById("urlReconstructBtn").addEventListener("click", handleUrlReconstruct);
+document.getElementById("urlClearBtn").addEventListener("click", handleUrlClear);
+document.getElementById("urlAddParamBtn").addEventListener("click", () => addParamRow("", ""));
+document.getElementById("copyUrlInputBtn").addEventListener("click", handleCopyUrlInput);
 
 setActiveTab("converter");
 renderDiffHtml(EMPTY_DIFF_HTML);

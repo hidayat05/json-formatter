@@ -39,6 +39,9 @@
                 <button id="jsonHtmlTabBtn" class="tab-button">
                     JSON to HTML
                 </button>
+                <button id="urlTabBtn" class="tab-button">
+                    URL Beautify
+                </button>
             </div>
 
             <div id="converterSection">
@@ -645,6 +648,75 @@ graph TD
                                 <div class="placeholder">
                                     Result will appear here after rendering
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="urlSection" class="hidden">
+                <div class="button-group">
+                    <button class="primary" id="urlBeautifyBtn">Beautify URL</button>
+                    <button class="secondary" id="urlEncodeBtn">Encode Entire URL</button>
+                    <button class="secondary" id="urlDecodeBtn">Decode Entire URL</button>
+                    <button class="secondary" id="urlReconstructBtn">Reconstruct URL</button>
+                    <button class="danger" id="urlClearBtn">Clear All</button>
+                </div>
+
+                <div class="url-beautifier-container">
+                    <!-- Left Side: Raw URL and parsed component inputs -->
+                    <div class="url-left-panel">
+                        <div class="editor-section">
+                            <div class="editor-header">
+                                <span class="editor-label">Raw URL Input</span>
+                                <button class="copy-button" id="copyUrlInputBtn">📋 Copy</button>
+                            </div>
+                            <textarea
+                                id="urlInput"
+                                placeholder="Enter or paste URL here... (e.g. https://example.com:8080/path/to/page?user=john&role=admin#section1)"
+                                spellcheck="false"
+                                autocorrect="off"
+                                autocapitalize="off"
+                                autocomplete="off"
+                            ></textarea>
+                        </div>
+
+                        <div class="url-details-card">
+                            <h3>URL Components</h3>
+                            <div class="url-details-grid">
+                                <div class="url-detail-row">
+                                    <span class="detail-name">Protocol</span>
+                                    <input type="text" id="urlProtocol" placeholder="e.g. https:" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off" />
+                                </div>
+                                <div class="url-detail-row">
+                                    <span class="detail-name">Hostname</span>
+                                    <input type="text" id="urlHostname" placeholder="e.g. example.com" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off" />
+                                </div>
+                                <div class="url-detail-row">
+                                    <span class="detail-name">Port</span>
+                                    <input type="text" id="urlPort" placeholder="e.g. 8080" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off" />
+                                </div>
+                                <div class="url-detail-row">
+                                    <span class="detail-name">Pathname</span>
+                                    <input type="text" id="urlPathname" placeholder="e.g. /path/to/page" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off" />
+                                </div>
+                                <div class="url-detail-row">
+                                    <span class="detail-name">Hash / Fragment</span>
+                                    <input type="text" id="urlHash" placeholder="e.g. #section1" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Side: Query Parameters Editor -->
+                    <div class="url-right-panel">
+                        <div class="url-params-card">
+                            <div class="params-header">
+                                <h3>Query Parameters</h3>
+                                <button class="primary-sm" id="urlAddParamBtn">+ Add Parameter</button>
+                            </div>
+                            <div class="url-params-list" id="urlParamsList">
+                                <div class="params-placeholder">No query parameters found</div>
                             </div>
                         </div>
                     </div>
