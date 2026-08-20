@@ -100,6 +100,10 @@
                         <textarea
                             id="inputText"
                             placeholder="Enter or paste JSON here..."
+                            spellcheck="false"
+                            autocorrect="off"
+                            autocapitalize="off"
+                            autocomplete="off"
                         ></textarea>
                     </div>
 
@@ -114,6 +118,10 @@
                             id="outputText"
                             class="output"
                             readonly
+                            spellcheck="false"
+                            autocorrect="off"
+                            autocapitalize="off"
+                            autocomplete="off"
                         ></textarea>
                     </div>
                 </div>
@@ -156,6 +164,10 @@
                         <textarea
                             id="compareLeft"
                             placeholder="Enter or paste left JSON..."
+                            spellcheck="false"
+                            autocorrect="off"
+                            autocapitalize="off"
+                            autocomplete="off"
                         ></textarea>
                     </div>
 
@@ -172,6 +184,10 @@
                         <textarea
                             id="compareRight"
                             placeholder="Enter or paste right JSON..."
+                            spellcheck="false"
+                            autocorrect="off"
+                            autocapitalize="off"
+                            autocomplete="off"
                         ></textarea>
                     </div>
                 </div>
@@ -187,6 +203,25 @@
                     <button class="primary" id="renderMermaidBtn">
                         🔄 Render Diagram
                     </button>
+                    <button class="secondary" id="formatMermaidBtn">
+                        🧹 Format Code
+                    </button>
+                    <select id="mermaidTemplateSelect" class="select-dropdown">
+                        <option value="" disabled selected>Insert Template...</option>
+                        <option value="flowchart">Flowchart</option>
+                        <option value="sequence">Sequence Diagram</option>
+                        <option value="class">Class Diagram</option>
+                        <option value="state">State Diagram</option>
+                        <option value="er">ER Diagram</option>
+                        <option value="git">Git Graph</option>
+                        <option value="pie">Pie Chart</option>
+                    </select>
+                    <select id="mermaidThemeSelect" class="select-dropdown">
+                        <option value="default" selected>Theme: Default</option>
+                        <option value="dark">Theme: Dark</option>
+                        <option value="forest">Theme: Forest</option>
+                        <option value="neutral">Theme: Neutral</option>
+                    </select>
                     <button class="success" id="downloadMermaidBtn">
                         📥 Download PNG
                     </button>
@@ -211,9 +246,13 @@ graph TD
     B -->|Yes| C[Great!]
     B -->|No| D[Debug]
     D --> B"
+                            spellcheck="false"
+                            autocorrect="off"
+                            autocapitalize="off"
+                            autocomplete="off"
                         ></textarea>
                     </div>
-
+                    <div class="mermaid-splitter" id="mermaidSplitter"></div>
                     <div class="mermaid-preview-section">
                         <div class="editor-header">
                             <span class="editor-label">Preview</span>
@@ -250,8 +289,24 @@ graph TD
                                 >
                                     ↺
                                 </button>
+                                <button
+                                    class="zoom-button"
+                                    id="zoomFitBtn"
+                                    title="Fit to Screen"
+                                >
+                                    ⌖
+                                </button>
+                                <span class="zoom-separator">|</span>
+                                <button
+                                    class="zoom-button"
+                                    id="mermaidFullscreenBtn"
+                                    title="Toggle Full Screen"
+                                >
+                                    ⛶
+                                </button>
                             </div>
                         </div>
+                        <div id="mermaidSyntaxWarning" class="syntax-warning hidden"></div>
                         <div class="mermaid-preview" id="mermaidPreview">
                             <div class="mermaid-placeholder">
                                 Enter Mermaid code and click "Render Diagram" to
@@ -446,6 +501,10 @@ graph TD
                         <textarea
                             id="opensslInput"
                             placeholder="Paste certificate string (PEM or base64 DER) here..."
+                            spellcheck="false"
+                            autocorrect="off"
+                            autocapitalize="off"
+                            autocomplete="off"
                         ></textarea>
                     </div>
 
@@ -461,6 +520,10 @@ graph TD
                             class="output"
                             readonly
                             placeholder="OpenSSL detail output will appear here..."
+                            spellcheck="false"
+                            autocorrect="off"
+                            autocapitalize="off"
+                            autocomplete="off"
                         ></textarea>
                     </div>
                 </div>
@@ -498,6 +561,10 @@ graph TD
                                 class="output"
                                 readonly
                                 placeholder="Traceroute output will appear here..."
+                                spellcheck="false"
+                                autocorrect="off"
+                                autocapitalize="off"
+                                autocomplete="off"
                             ></textarea>
                             <div
                                 id="tracerouteLoading"
@@ -541,6 +608,10 @@ graph TD
                             <textarea
                                 id="jsonHtmlInput"
                                 placeholder='Enter JSON data here... e.g. {"name": "John", "age": 30}'
+                                spellcheck="false"
+                                autocorrect="off"
+                                autocapitalize="off"
+                                autocomplete="off"
                             ></textarea>
                         </div>
                     </div>
@@ -556,6 +627,10 @@ graph TD
                             <textarea
                                 id="htmlTemplate"
                                 placeholder='Enter HTML template here... e.g. <h1>{{name}}</h1><p>Age: {{age}}</p>'
+                                spellcheck="false"
+                                autocorrect="off"
+                                autocapitalize="off"
+                                autocomplete="off"
                             ></textarea>
                         </div>
 

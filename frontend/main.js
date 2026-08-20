@@ -52,6 +52,10 @@ const copyResultHtmlBtn = document.getElementById("copyResultHtmlBtn");
 // Mermaid elements
 const mermaidInput = document.getElementById("mermaidInput");
 const mermaidPreview = document.getElementById("mermaidPreview");
+const mermaidTemplateSelect = document.getElementById("mermaidTemplateSelect");
+const mermaidThemeSelect = document.getElementById("mermaidThemeSelect");
+const mermaidSyntaxWarning = document.getElementById("mermaidSyntaxWarning");
+const zoomFitBtn = document.getElementById("zoomFitBtn");
 
 // Zoom controls
 const zoomInBtn = document.getElementById("zoomInBtn");
@@ -145,6 +149,63 @@ function sortKeys(value) {
 function normalizedJson(text) {
   const parsed = JSON.parse(text);
   return JSON.stringify(sortKeys(parsed), null, 2);
+}
+
+// Clean and format Mermaid diagram source code
+function formatMermaid(code) {
+  const lines = code.split("\n");
+  let indentLevel = 0;
+  let formattedLines = [];
+
+  const diagramHeaders = [
+    /^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|gantt|pie|journey|mindmap|timeline|gitGraph|requirementDiagram|C4Context|C4Container|C4Component|kanban|architecture)/i
+  ];
+
+  let hasSeenHeader = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    let line = lines[i].trim();
+
+    if (line === "") {
+      if (formattedLines.length > 0 && formattedLines[formattedLines.length - 1] !== "") {
+        formattedLines.push("");
+      }
+      continue;
+    }
+
+    const isHeader = diagramHeaders.some(regex => regex.test(line));
+    const isClosingBlock = /^(end|else|opt|loop|alt|par|critical)/i.test(line) && !/^end[a-zA-Z0-9]/i.test(line);
+
+    if (isClosingBlock && indentLevel > 0) {
+      indentLevel--;
+    }
+
+    const currentIndent = isHeader ? 0 : (indentLevel + (hasSeenHeader ? 1 : 0)) * 2;
+    const indentSpace = " ".repeat(currentIndent);
+
+    // Standardize arrows/connectors spacing for readability, matching longer arrows first to prevent prefix conflicts
+    let formattedLine = line.replace(
+      /\s*(-->>|-\.->|->>|-->|---|==>|===|--x|--\)|\-\.\-|->|-x|-\)|==)\s*/g,
+      " $1 "
+    );
+
+    formattedLines.push(indentSpace + formattedLine);
+
+    if (isHeader) {
+      hasSeenHeader = true;
+    }
+
+    const isOpeningBlock = /^(subgraph|alt|opt|loop|par|critical|rect)/i.test(line) && !/(\s+end\s*|;)$/i.test(line);
+    if (isOpeningBlock) {
+      indentLevel++;
+    }
+  }
+
+  if (formattedLines.length > 0 && formattedLines[formattedLines.length - 1] === "") {
+    formattedLines.pop();
+  }
+
+  return formattedLines.join("\n");
 }
 
 function buildLineDiff(leftLines, rightLines) {
@@ -696,6 +757,39 @@ function handleZoomReset() {
   updateZoom();
 }
 
+function handleZoomFit() {
+  const svgElement = mermaidPreview.querySelector("svg");
+  if (!svgElement) return;
+
+  panX = 0;
+  panY = 0;
+
+  // Calculate scaling to fit container
+  const containerWidth = mermaidPreview.clientWidth - 32; // padding
+  const containerHeight = mermaidPreview.clientHeight - 32;
+
+  // Get SVG viewbox dimensions
+  const viewBox = svgElement.viewBox.baseVal;
+  let svgWidth = viewBox.width || svgElement.clientWidth || svgElement.getBoundingClientRect().width;
+  let svgHeight = viewBox.height || svgElement.clientHeight || svgElement.getBoundingClientRect().height;
+
+  if (svgWidth && svgHeight) {
+    const scaleX = containerWidth / svgWidth;
+    const scaleY = containerHeight / svgHeight;
+    const optimalScale = Math.min(scaleX, scaleY, 1.5); // cap at 150% zoom
+    currentZoom = Math.max(Math.round(optimalScale * 100), 20); // min 20%
+  } else {
+    currentZoom = 100;
+  }
+
+  zoomLevelDisplay.textContent = `${currentZoom}%`;
+  const content = mermaidPreview.querySelector(".mermaid-preview-content");
+  if (content) {
+    content.style.transform = `scale(${currentZoom / 100}) translate(0px, 0px)`;
+  }
+  showStatus("✓ Diagram fit to screen");
+}
+
 // Drag/Pan functions
 function toggleDragMode() {
   isDragMode = !isDragMode;
@@ -742,6 +836,78 @@ function handleDragEnd() {
   mermaidPreview.classList.remove("dragging");
 }
 
+// Mermaid templates library
+const MERMAID_TEMPLATES = {
+  flowchart: `graph TD
+    A[Start] --> B{Is it working?}
+    B -->|Yes| C[Great!]
+    B -->|No| D[Debug]
+    D --> B`,
+  sequence: `sequenceDiagram
+    autonumber
+    Alice->>Bob: Hello Bob, how are you?
+    activate Bob
+    Bob-->>Alice: Great, thanks!
+    deactivate Bob
+    Note right of Bob: Bob is in a good mood
+    
+    Alice->>+John: How about you, John?
+    John-->>-Alice: I'm doing fine!`,
+  class: `classDiagram
+    class Vehicle {
+      +String make
+      +String model
+      +int year
+      +start()
+      +stop()
+    }
+    class Car {
+      +int doors
+      +honk()
+    }
+    Vehicle <|-- Car`,
+  state: `stateDiagram-v2
+    [*] --> Off
+    Off --> On : Turn On
+    On --> Active : Start Action
+    Active --> On : Finish Action
+    On --> Off : Turn Off`,
+  er: `erDiagram
+    USER ||--o{ ORDER : places
+    ORDER ||--|{ LINE_ITEM : contains
+    USER {
+      string id
+      string name
+      string email
+    }
+    ORDER {
+      int id
+      string status
+      date created_at
+    }
+    LINE_ITEM {
+      int order_id
+      int product_id
+      int quantity
+      float price
+    }`,
+  git: `gitGraph
+    commit
+    commit
+    branch develop
+    checkout develop
+    commit
+    commit
+    checkout main
+    merge develop
+    commit`,
+  pie: `pie title Tech Stack Usage
+    "Rust" : 45
+    "JavaScript" : 30
+    "HTML/CSS" : 15
+    "Python" : 10`
+};
+
 // Mermaid functions
 async function handleRenderMermaid() {
   const code = mermaidInput.value.trim();
@@ -749,10 +915,25 @@ async function handleRenderMermaid() {
   if (!code) {
     mermaidPreview.innerHTML =
       '<div class="mermaid-placeholder">Enter Mermaid code and click "Render Diagram" to preview</div>';
+    mermaidSyntaxWarning.classList.add("hidden");
     return;
   }
 
   try {
+    // Validate syntax first
+    try {
+      await mermaid.parse(code);
+      mermaidSyntaxWarning.classList.add("hidden");
+    } catch (parseError) {
+      mermaidSyntaxWarning.textContent = `⚠️ Syntax Error:\n${parseError.message || String(parseError)}`;
+      mermaidSyntaxWarning.classList.remove("hidden");
+      // Keep the last valid render if one exists, otherwise render error
+      if (!mermaidPreview.querySelector("svg")) {
+        mermaidPreview.innerHTML = `<div class="mermaid-error">Syntax Error:<br>${escapeHtml(parseError.message || String(parseError))}</div>`;
+      }
+      return;
+    }
+
     // Clear previous content
     mermaidPreview.innerHTML = "";
 
@@ -842,6 +1023,17 @@ function handleClearMermaid() {
   panY = 0;
   zoomLevelDisplay.textContent = "100%";
   showStatus("Mermaid editor cleared!");
+}
+
+function handleFormatMermaid() {
+  const code = mermaidInput.value;
+  if (!code.trim()) {
+    showStatus("Please enter Mermaid code", true);
+    return;
+  }
+  const formatted = formatMermaid(code);
+  mermaidInput.value = formatted;
+  showStatus("✓ Mermaid code formatted successfully");
 }
 
 // Image Resizer Functions
@@ -1382,6 +1574,9 @@ document
   .getElementById("renderMermaidBtn")
   .addEventListener("click", handleRenderMermaid);
 document
+  .getElementById("formatMermaidBtn")
+  .addEventListener("click", handleFormatMermaid);
+document
   .getElementById("downloadMermaidBtn")
   .addEventListener("click", handleDownloadMermaidPng);
 document
@@ -1563,6 +1758,149 @@ document.addEventListener("keydown", (e) => {
     }
   }
 });
+
+// Clean smart/curly quotes to straight quotes on input to prevent quote replacement issues
+document.querySelectorAll("textarea, input[type='text']").forEach((inputEl) => {
+  inputEl.addEventListener("input", (e) => {
+    const start = e.target.selectionStart;
+    const end = e.target.selectionEnd;
+    const val = e.target.value;
+
+    const cleaned = val
+      .replace(/[\u201C\u201D\u201E\u201F\u2033\u2036”“”„‟″‟❝❞]/g, '"')
+      .replace(/[\u2018\u2019\u201A\u201B\u2032\u2035‘’‚‛′‟❛❜]/g, "'");
+
+    if (val !== cleaned) {
+      e.target.value = cleaned;
+      if (start !== null && end !== null) {
+        e.target.setSelectionRange(start, end);
+      }
+    }
+  });
+});
+
+// Mermaid Editor Splitter logic
+const mermaidContainer = document.querySelector(".mermaid-container");
+const mermaidEditorSection = document.querySelector(".mermaid-editor-section");
+const mermaidSplitter = document.getElementById("mermaidSplitter");
+
+let isDraggingSplitter = false;
+
+if (mermaidSplitter && mermaidContainer && mermaidEditorSection) {
+  mermaidSplitter.addEventListener("mousedown", (e) => {
+    isDraggingSplitter = true;
+    mermaidSplitter.classList.add("dragging");
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (!isDraggingSplitter) return;
+
+    const containerRect = mermaidContainer.getBoundingClientRect();
+    const newWidth = e.clientX - containerRect.left;
+
+    const minWidth = 150;
+    const maxWidth = containerRect.width - minWidth - 8; // 8px splitter width
+
+    if (newWidth >= minWidth && newWidth <= maxWidth) {
+      mermaidEditorSection.style.flex = "none";
+      mermaidEditorSection.style.width = `${newWidth}px`;
+    }
+  });
+
+  document.addEventListener("mouseup", () => {
+    if (isDraggingSplitter) {
+      isDraggingSplitter = false;
+      mermaidSplitter.classList.remove("dragging");
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    }
+  });
+
+  window.addEventListener("resize", () => {
+    if (mermaidEditorSection.style.flex === "none") {
+      const containerRect = mermaidContainer.getBoundingClientRect();
+      const currentWidth = parseFloat(mermaidEditorSection.style.width);
+      const minWidth = 150;
+      const maxWidth = containerRect.width - minWidth - 8;
+      if (currentWidth > maxWidth) {
+        mermaidEditorSection.style.width = `${Math.max(minWidth, maxWidth)}px`;
+      }
+    }
+  });
+}
+
+// Fullscreen mode logic for Mermaid preview
+const mermaidFullscreenBtn = document.getElementById("mermaidFullscreenBtn");
+const mermaidPreviewSection = document.querySelector(".mermaid-preview-section");
+
+if (mermaidFullscreenBtn && mermaidPreviewSection) {
+  mermaidFullscreenBtn.addEventListener("click", () => {
+    const isFullscreen = mermaidPreviewSection.classList.toggle("fullscreen");
+    if (isFullscreen) {
+      mermaidFullscreenBtn.innerHTML = "✕";
+      mermaidFullscreenBtn.title = "Exit Full Screen";
+    } else {
+      mermaidFullscreenBtn.innerHTML = "⛶";
+      mermaidFullscreenBtn.title = "Toggle Full Screen";
+    }
+  });
+
+  // Support exiting fullscreen using the Escape key
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && mermaidPreviewSection.classList.contains("fullscreen")) {
+      mermaidPreviewSection.classList.remove("fullscreen");
+      mermaidFullscreenBtn.innerHTML = "⛶";
+      mermaidFullscreenBtn.title = "Toggle Full Screen";
+    }
+  });
+}
+
+// Auto-render Mermaid code on input (500ms debounce)
+let autoRenderTimeout = null;
+if (mermaidInput) {
+  mermaidInput.addEventListener("input", () => {
+    if (autoRenderTimeout) {
+      clearTimeout(autoRenderTimeout);
+    }
+    autoRenderTimeout = setTimeout(() => {
+      handleRenderMermaid();
+    }, 500);
+  });
+}
+
+// Template selection listener
+if (mermaidTemplateSelect) {
+  mermaidTemplateSelect.addEventListener("change", () => {
+    const templateKey = mermaidTemplateSelect.value;
+    if (templateKey && MERMAID_TEMPLATES[templateKey]) {
+      mermaidInput.value = formatMermaid(MERMAID_TEMPLATES[templateKey]);
+      handleRenderMermaid();
+      // Reset dropdown select placeholder
+      mermaidTemplateSelect.value = "";
+    }
+  });
+}
+
+// Theme selection listener
+if (mermaidThemeSelect) {
+  mermaidThemeSelect.addEventListener("change", () => {
+    const selectedTheme = mermaidThemeSelect.value || "default";
+    mermaid.initialize({
+      startOnLoad: false,
+      theme: selectedTheme,
+      securityLevel: "loose",
+      fontFamily: "JetBrains Mono, monospace",
+    });
+    handleRenderMermaid();
+  });
+}
+
+// Zoom Fit button listener
+if (zoomFitBtn) {
+  zoomFitBtn.addEventListener("click", handleZoomFit);
+}
 
 setActiveTab("converter");
 renderDiffHtml(EMPTY_DIFF_HTML);
