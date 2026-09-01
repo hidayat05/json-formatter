@@ -71,6 +71,22 @@ A fast, lightweight, and versatile desktop toolbox built with **Rust** and **Tau
 * **Enriched Metadata**: Auto-resolves reverse DNS, ASN, Organization, and Geo location for public hops.
 * **Formatted ASCII Output**: Clean, readable hop table summary.
 
+### 10. 🎭 Local Mock & Proxy Server *(New)*
+* **🌐 REST Mock & Transparent Proxy**:
+  * Dynamic matching for exact path, path parameters (`/api/users/:id`), and wildcards (`*`).
+  * Custom HTTP methods, status codes, latency simulation, and custom response headers/body.
+  * **Origin Forwarder (Fallback Reverse Proxy)**: Forwards unhandled requests to real upstream servers (e.g. staging API) with full headers and body preservation.
+  * **🪄 1-Click "Record to Mock"**: Converts any intercepted upstream response into a local mock rule instantly!
+* **⚡ Dynamic gRPC Mocking**:
+  * **Pure-Rust Proto Compiler**: Parses `.proto` files dynamically in memory using `protox` without requiring external `protoc` binary.
+  * Service & RPC Explorer: Inspects RPC methods, input types, and output types.
+  * Dynamic Protobuf encoding/decoding and JSON schema mock generation.
+* **📜 Live Traffic Inspector**:
+  * Intercepts and logs all incoming traffic in real-time.
+  * Complete Request/Response headers & payload inspector with filter by type/source.
+* **💾 Local SQLite Persistence**:
+  * Uses bundled `rusqlite` to store all rules, configs, proto files, and traffic history permanently.
+
 ---
 
 ## 🛠️ Tech Stack

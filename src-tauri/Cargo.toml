@@ -17,7 +17,24 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 image = "0.24"
 base64 = "0.22"
+tokio = { version = "1", features = ["full"] }
+rusqlite = { version = "0.31", features = ["bundled"] }
+axum = { version = "0.7", features = ["json", "macros"] }
+tower-http = { version = "0.5", features = ["cors", "trace"] }
+tower = { version = "0.4", features = ["util"] }
+reqwest = { version = "0.12", features = ["json", "stream"] }
+http = "1.1"
+http-body-util = "0.1"
+hyper = { version = "1.4", features = ["full"] }
+hyper-util = { version = "0.1", features = ["full"] }
+regex = "1.10"
+uuid = { version = "1.10", features = ["v4", "serde"] }
+protox = "0.7"
+prost = "0.13"
+prost-reflect = { version = "0.14", features = ["serde"] }
+prost-types = "0.13"
 
 [features]
 default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
+

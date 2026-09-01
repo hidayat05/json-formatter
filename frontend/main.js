@@ -8,6 +8,7 @@ import { initUrlBeautifier } from "./modules/url-beautifier.js";
 import { initImageResizer } from "./modules/image-resizer.js";
 import { initMermaid } from "./modules/mermaid-editor.js";
 import { initJsonEditor } from "./modules/json-editor.js";
+import { initMockServer } from "./modules/mock-server.js";
 
 // Clean smart/curly quotes across all text inputs
 document.querySelectorAll("textarea, input[type='text']").forEach((inputEl) => {
@@ -44,4 +45,5 @@ initTabs({
   imageResizer: initImageResizer,
   mermaid: initMermaid,
   jsonEditor: initJsonEditor,
+  mockServer: initMockServer,
 });

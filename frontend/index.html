@@ -7,7 +7,7 @@
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <link
-            href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&display=swap"
+            href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap"
             rel="stylesheet"
         />
         <link rel="stylesheet" href="/styles.css" />
@@ -16,6 +16,7 @@
         <link rel="stylesheet" href="/styles/json-html.css" />
         <link rel="stylesheet" href="/styles/url-beautifier.css" />
         <link rel="stylesheet" href="/styles/json-editor.css" />
+        <link rel="stylesheet" href="/styles/mock-server.css" />
     </head>
     <body>
         <div class="container">
@@ -80,6 +81,9 @@
                 </button>
                 <button id="urlTabBtn" data-tab="url" class="tab-button">
                     URL Beautify
+                </button>
+                <button id="mockServerTabBtn" class="tab-button" data-tab="mockServer">
+                    🎭 Mock & Proxy
                 </button>
             </div>
 
@@ -997,6 +1001,518 @@ graph TD
                                 class="json-tree-container"
                             >
                                 <!-- Dynamically generated tree view -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Mock & Proxy Server Section -->
+            <div id="mockServerSection" data-section="mockServer" class="hidden">
+                <div class="mock-header-unified">
+                    <!-- Left: Subtabs -->
+                    <div class="mock-subtabs">
+                        <button id="mockRestSubTabBtn" class="mock-subtab-btn active">
+                            <span class="subtab-icon">🌐</span> REST Mock
+                        </button>
+                        <button id="mockGrpcSubTabBtn" class="mock-subtab-btn">
+                            <span class="subtab-icon">⚡</span> gRPC Mock
+                        </button>
+                        <button id="mockTrafficSubTabBtn" class="mock-subtab-btn">
+                            <span class="subtab-icon">📜</span> Traffic Logs
+                            <span id="trafficBadgeCount" class="mock-traffic-badge">0</span>
+                        </button>
+                    </div>
+
+                    <!-- Center / Right: Server Control Capsule & Quick Actions -->
+                    <div class="mock-header-actions-group">
+                        <div class="mock-server-capsule">
+                            <div class="mock-status-pill">
+                                <span id="mockServerStatusLed" class="status-led led-stopped"></span>
+                                <span id="mockServerStatusText">REST: Stopped</span>
+                            </div>
+                            <div class="mock-port-pill">
+                                <span class="pill-label">Port</span>
+                                <input type="number" id="mockPortInput" class="mock-port-input-clean" value="8080" min="1024" max="65535" />
+                            </div>
+                            <button id="toggleMockServerBtn" class="primary mock-start-btn">
+                                ▶ Start
+                            </button>
+                            <div class="mock-url-chip">
+                                <span id="mockBaseUrlDisplay">http://127.0.0.1:8080</span>
+                                <button id="copyMockBaseUrlBtn" class="chip-copy-btn" title="Copy Base URL">📋</button>
+                            </div>
+                        </div>
+
+                        <div class="mock-tools-btn-group">
+                            <button id="toggleForwarderDrawerBtn" class="mock-tool-btn" title="Configure Origin Reverse Proxy">
+                                <span class="tool-dot" id="forwarderActiveDot"></span> 🔄 Proxy Origin
+                            </button>
+                            <button id="exportMockCollectionBtn" class="mock-tool-btn" title="Export Mock Rules as JSON">
+                                📤 Export
+                            </button>
+                            <button id="importMockCollectionBtn" class="mock-tool-btn" title="Import Mock Rules from JSON">
+                                📥 Import
+                            </button>
+                            <input type="file" id="importMockFileInput" accept=".json" class="hidden" />
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Slide-down Origin Proxy Configuration Drawer -->
+                <div id="mockForwarderDrawer" class="mock-forwarder-drawer hidden">
+                    <div class="forwarder-drawer-inner">
+                        <div class="forwarder-drawer-left">
+                            <div class="forwarder-title-row">
+                                <span class="forwarder-icon">🔄</span>
+                                <div>
+                                    <strong>Origin Fallback Reverse Proxy</strong>
+                                    <span class="forwarder-subtitle">Unmatched requests are forwarded to your real upstream backend.</span>
+                                </div>
+                            </div>
+                            <div class="forwarder-inputs-row">
+                                <label class="mock-toggle-switch">
+                                    <input type="checkbox" id="mockForwarderEnabledCheck" />
+                                    <span class="mock-toggle-slider"></span>
+                                    <span class="mock-toggle-text">Enable Proxy Forwarder</span>
+                                </label>
+                                <div class="forwarder-url-box">
+                                    <span class="url-prefix">Target:</span>
+                                    <input type="text" id="mockOriginUrlInput" placeholder="https://api.staging.example.com or http://localhost:3000" />
+                                </div>
+                            </div>
+                        </div>
+                        <div class="forwarder-drawer-right">
+                            <label class="mock-toggle-switch">
+                                <input type="checkbox" id="mockRecordTrafficCheck" checked />
+                                <span class="mock-toggle-slider"></span>
+                                <span class="mock-toggle-text">Record Traffic</span>
+                            </label>
+                            <button id="saveMockConfigBtn" class="primary small-btn">💾 Save Proxy</button>
+                            <button id="closeForwarderDrawerBtn" class="secondary tiny-btn">✕ Close</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 1. REST Mock Panel -->
+                <div id="mockRestPanel" class="mock-panel-view">
+                    <div class="mock-split-container">
+                        <!-- Left Pane: Rules List & Search/Filters -->
+                        <div class="mock-left-pane">
+                            <div class="mock-pane-header">
+                                <div class="mock-pane-title-group">
+                                    <h3>Endpoints</h3>
+                                    <span id="restRuleCount" class="badge-count">0 rules</span>
+                                </div>
+                                <div class="mock-pane-actions">
+                                    <button id="newRestRuleBtn" class="primary small-btn">+ New Rule</button>
+                                </div>
+                            </div>
+
+                            <!-- Search & Method Filter Chips -->
+                            <div class="mock-search-and-filters">
+                                <div class="mock-search-wrapper">
+                                    <input type="text" id="restRuleSearchInput" class="mock-search-field" placeholder="🔍 Filter path or name..." spellcheck="false" />
+                                    <button id="clearRestSearchBtn" class="search-clear-btn hidden">✕</button>
+                                </div>
+                                <div class="mock-method-chips">
+                                    <button class="method-chip active" data-method="ALL">ALL</button>
+                                    <button class="method-chip" data-method="GET">GET</button>
+                                    <button class="method-chip" data-method="POST">POST</button>
+                                    <button class="method-chip" data-method="PUT">PUT</button>
+                                    <button class="method-chip" data-method="DELETE">DEL</button>
+                                </div>
+                            </div>
+
+                            <div id="restRulesList" class="mock-rules-list">
+                                <!-- Dynamically generated rules -->
+                            </div>
+                        </div>
+
+                        <!-- Right Pane: REST Rule Editor -->
+                        <div class="mock-right-pane">
+                            <div class="mock-editor-card">
+                                <!-- Address Bar Row -->
+                                <div class="mock-address-bar">
+                                    <select id="restRuleMethodSelect" class="mock-method-select">
+                                        <option value="GET">GET</option>
+                                        <option value="POST">POST</option>
+                                        <option value="PUT">PUT</option>
+                                        <option value="DELETE">DELETE</option>
+                                        <option value="PATCH">PATCH</option>
+                                        <option value="*">ANY (*)</option>
+                                    </select>
+                                    <div class="mock-path-input-wrapper">
+                                        <span class="path-prefix">Path:</span>
+                                        <input type="text" id="restRulePathInput" class="mock-path-input" placeholder="/api/v1/user/profile" />
+                                    </div>
+                                    <div class="mock-status-select-wrap">
+                                        <span class="status-label">Status:</span>
+                                        <input type="number" id="restRuleStatusInput" class="mock-status-input" value="200" min="100" max="599" />
+                                    </div>
+                                </div>
+
+                                <!-- Meta & Presets Row -->
+                                <div class="mock-meta-row">
+                                    <div class="mock-rule-name-box">
+                                        <label for="restRuleNameInput">Description:</label>
+                                        <input type="text" id="restRuleNameInput" placeholder="e.g. Get User Profile Success" />
+                                    </div>
+                                    <div class="mock-delay-presets-group">
+                                        <label>Latency Delay:</label>
+                                        <div class="delay-chip-group">
+                                            <button type="button" class="delay-chip active" data-delay="0">0ms</button>
+                                            <button type="button" class="delay-chip" data-delay="100">100ms</button>
+                                            <button type="button" class="delay-chip" data-delay="300">300ms</button>
+                                            <button type="button" class="delay-chip" data-delay="800">800ms</button>
+                                            <button type="button" class="delay-chip" data-delay="2000">2s</button>
+                                            <input type="number" id="restRuleDelayInput" class="delay-custom-input" value="0" min="0" max="60000" placeholder="ms" />
+                                        </div>
+                                    </div>
+                                    <div class="mock-status-chip-group">
+                                        <label>Status Preset:</label>
+                                        <div class="preset-chip-list">
+                                            <button type="button" class="preset-btn" data-status="200">200</button>
+                                            <button type="button" class="preset-btn" data-status="201">201</button>
+                                            <button type="button" class="preset-btn" data-status="400">400</button>
+                                            <button type="button" class="preset-btn" data-status="401">401</button>
+                                            <button type="button" class="preset-btn" data-status="404">404</button>
+                                            <button type="button" class="preset-btn" data-status="500">500</button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Editor Tabs (Response Body / Headers / Test cURL) -->
+                                <div class="mock-editor-tabs-bar">
+                                    <div class="editor-subtabs">
+                                        <button id="restTabBodyBtn" class="editor-tab-btn active">📦 Response Body</button>
+                                        <button id="restTabHeadersBtn" class="editor-tab-btn">📋 Headers & Options</button>
+                                        <button id="restTabCurlBtn" class="editor-tab-btn">🧪 cURL Snippet</button>
+                                    </div>
+                                    <div class="editor-subtab-actions">
+                                        <button id="formatRestBodyBtn" class="secondary tiny-btn">✨ Format JSON</button>
+                                        <button id="minifyRestBodyBtn" class="secondary tiny-btn">🪄 Minify</button>
+                                        <button id="copyRestCurlBtn" class="secondary tiny-btn">📋 Copy cURL</button>
+                                        <button id="duplicateRestRuleBtn" class="secondary tiny-btn">📑 Duplicate</button>
+                                        <button id="deleteRestRuleBtn" class="danger tiny-btn">🗑️ Delete</button>
+                                        <button id="saveRestRuleBtn" class="primary small-btn">💾 Save Rule</button>
+                                    </div>
+                                </div>
+
+                                <!-- Response Body Content Area -->
+                                <div id="restEditorBodySection" class="mock-editor-content-area">
+                                    <textarea id="restRuleBodyInput" class="mock-code-textarea" spellcheck="false" placeholder='{\n  "status": "success",\n  "data": {}\n}'></textarea>
+                                </div>
+
+                                <!-- Headers Content Area -->
+                                <div id="restEditorHeadersSection" class="mock-editor-content-area hidden">
+                                    <div class="headers-editor-panel">
+                                        <div class="headers-quick-presets">
+                                            <span>Presets:</span>
+                                            <button type="button" class="header-preset-btn" data-header='{"Content-Type": "application/json"}'>JSON</button>
+                                            <button type="button" class="header-preset-btn" data-header='{"Content-Type": "text/html; charset=utf-8"}'>HTML</button>
+                                            <button type="button" class="header-preset-btn" data-header='{"Content-Type": "text/plain"}'>Plain Text</button>
+                                            <button type="button" class="header-preset-btn" data-header='{"Content-Type": "application/xml"}'>XML</button>
+                                        </div>
+                                        <textarea id="restRuleHeadersInput" class="mock-code-textarea headers-textarea" spellcheck="false" placeholder='{\n  "Content-Type": "application/json"\n}'></textarea>
+                                    </div>
+                                </div>
+
+                                <!-- cURL Test Area -->
+                                <div id="restEditorCurlSection" class="mock-editor-content-area hidden">
+                                    <div class="curl-preview-panel">
+                                        <div class="curl-preview-header">
+                                            <span>Ready-to-run cURL command for this endpoint:</span>
+                                            <button id="copyCurlBoxBtn" class="primary tiny-btn">📋 Copy Command</button>
+                                        </div>
+                                        <pre id="restCurlPreviewBox" class="curl-code-box">curl http://127.0.0.1:8080/api/v1/user/profile</pre>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 2. gRPC Mock Panel -->
+                <div id="mockGrpcPanel" class="mock-panel-view hidden">
+                    <div class="mock-split-container">
+                        <!-- Left Pane: Proto Schemas & RPC Navigator -->
+                        <div class="mock-left-pane">
+                            <div class="mock-pane-header">
+                                <div class="mock-pane-title-group">
+                                    <h3>Protobuf Schemas</h3>
+                                    <span id="grpcProtoCount" class="badge-count">1 file</span>
+                                </div>
+                                <div class="mock-pane-header-actions">
+                                    <button id="newProtoFileBtn" class="primary tiny-btn" title="Create new empty .proto schema">+ New</button>
+                                </div>
+                            </div>
+
+                            <!-- Inline New Proto Creator Form -->
+                            <div id="newProtoInlineBox" class="new-proto-inline-box hidden">
+                                <input type="text" id="newProtoFilenameInput" class="new-proto-input" placeholder="e.g. order_service.proto" value="new_service.proto" spellcheck="false" />
+                                <div class="new-proto-btn-row">
+                                    <button id="confirmNewProtoBtn" class="primary tiny-btn">Create</button>
+                                    <button id="cancelNewProtoBtn" class="secondary tiny-btn">✕</button>
+                                </div>
+                            </div>
+
+                            <!-- Active Proto File Selector Row -->
+                            <div class="mock-proto-file-selector">
+                                <select id="grpcProtoFileSelect" title="Select active .proto schema">
+                                    <!-- Proto options -->
+                                </select>
+                                <button id="toggleProtoViewBtn" class="secondary tiny-btn" title="View/Edit .proto source code">📝 Code</button>
+                                <button id="deleteProtoFileBtn" class="danger tiny-btn" title="Delete currently selected .proto file">🗑️</button>
+                            </div>
+
+                            <!-- Proto Schemas Action Toolbar -->
+                            <div class="mock-proto-toolbar">
+                                <button id="uploadProtoFileBtn" class="secondary tiny-btn" title="Upload single or multiple .proto files">📄 +File</button>
+                                <button id="uploadProtoFolderBtn" class="secondary tiny-btn" title="Import entire directory/folder of .proto schemas">📁 +Folder</button>
+                                <button id="clearAllProtosBtn" class="danger tiny-btn" title="Clear all imported .proto files and folder schemas">🧹 Clear All</button>
+                                <input type="file" id="protoFileInput" accept=".proto" multiple class="hidden" />
+                                <input type="file" id="protoFolderInput" webkitdirectory directory multiple class="hidden" />
+                            </div>
+
+                            <!-- Services & Methods Tree -->
+                            <div class="mock-grpc-tree-section">
+                                <div class="tree-header-row">
+                                    <h4>Services & Methods</h4>
+                                    <div class="grpc-filter-chips">
+                                        <button id="grpcFilterAllBtn" class="method-chip active" title="Show all RPC methods">All</button>
+                                        <button id="grpcFilterMockedBtn" class="method-chip" title="Show only methods with custom mock rules">⚡ Mocked</button>
+                                    </div>
+                                </div>
+                                <div class="mock-search-wrapper">
+                                    <input type="text" id="grpcMethodSearchInput" class="mock-search-field" placeholder="Search service or RPC method..." />
+                                    <button id="clearGrpcSearchBtn" class="search-clear-btn hidden">✕</button>
+                                </div>
+                                <div id="grpcServiceTree" class="mock-grpc-tree">
+                                    <!-- Dynamic service/method nodes -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Right Pane: gRPC Rule Editor -->
+                        <div class="mock-right-pane">
+                            <div class="mock-editor-card">
+                                <!-- RPC Overview Banner -->
+                                <div class="grpc-overview-banner">
+                                    <div class="grpc-overview-left">
+                                        <div class="grpc-badge-tag">RPC METHOD</div>
+                                        <h3 id="grpcEditorTitle">Select an RPC method</h3>
+                                        <span id="grpcSelectedRpcSubtitle" class="grpc-rpc-subtitle">Choose a service from the left navigator</span>
+                                    </div>
+                                    <div class="grpc-overview-right">
+                                        <button id="deleteGrpcRuleBtn" class="danger small-btn hidden" title="Delete custom mock rule and revert to default protobuf stub">🗑️ Delete Mock</button>
+                                        <button id="copyGrpcurlBtn" class="secondary small-btn">📋 Copy grpcurl</button>
+                                        <button id="saveGrpcRuleBtn" class="primary small-btn">💾 Save gRPC Mock</button>
+                                    </div>
+                                </div>
+
+                                <!-- Proto Source Editor Modal/Studio (Expandable & Fullscreen) -->
+                                <div id="protoSourceContainer" class="proto-source-container hidden">
+                                    <div class="proto-source-backdrop"></div>
+                                    <div class="proto-source-inner">
+                                        <div class="proto-source-header">
+                                            <div class="proto-source-title-group">
+                                                <span class="proto-editor-badge">PROTO STUDIO</span>
+                                                <span id="protoSourceFilenameLabel" class="proto-source-filename">user_service.proto</span>
+                                                <span class="proto-syntax-hint-badge">proto3</span>
+                                            </div>
+                                            <div class="proto-source-actions">
+                                                <button id="insertSampleServiceBtn" class="secondary tiny-btn" title="Insert RPC service template">🪄 + RPC</button>
+                                                <button id="compileProtoBtn" class="primary tiny-btn" title="Compile and save to database (Cmd+S)">⚙️ Compile & Save</button>
+                                                <button id="modalDeleteProtoBtn" class="danger tiny-btn" title="Delete current .proto file">🗑️ Delete</button>
+                                                <button id="expandProtoViewBtn" class="secondary tiny-btn" title="Toggle Fullscreen expand">⛶ Fullscreen</button>
+                                                <button id="closeProtoSourceBtn" class="secondary tiny-btn" title="Close editor">✕</button>
+                                            </div>
+                                        </div>
+                                        <div class="proto-source-editor-wrapper">
+                                            <textarea id="protoSourceEditor" class="proto-source-textarea" spellcheck="false" placeholder="syntax = 'proto3';\n\npackage example;\n\nservice ExampleService {\n  rpc GetData (GetDataRequest) returns (GetDataResponse);\n}"></textarea>
+                                        </div>
+                                        <div class="proto-source-footer">
+                                            <span class="proto-editor-tip">💡 <b>Tip:</b> Make sure lines end with semicolon <code>;</code> before imports. Press <b>Ctrl+S / Cmd+S</b> to quickly compile & save.</span>
+                                            <span id="protoEditorCharCount" class="proto-editor-count">0 chars</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- gRPC Config Form -->
+                                <div id="grpcRpcConfigContainer" class="mock-form-grid-grpc">
+                                    <!-- gRPC Status & Delay Control Bar -->
+                                    <div class="mock-grpc-control-row">
+                                        <div class="mock-form-group">
+                                            <label for="grpcStatusCodeSelect">gRPC Status Code:</label>
+                                            <select id="grpcStatusCodeSelect" class="grpc-status-select">
+                                                <option value="0">0: OK</option>
+                                                <option value="1">1: CANCELLED</option>
+                                                <option value="2">2: UNKNOWN</option>
+                                                <option value="3">3: INVALID_ARGUMENT</option>
+                                                <option value="4">4: DEADLINE_EXCEEDED</option>
+                                                <option value="5">5: NOT_FOUND</option>
+                                                <option value="6">6: ALREADY_EXISTS</option>
+                                                <option value="7">7: PERMISSION_DENIED</option>
+                                                <option value="8">8: RESOURCE_EXHAUSTED</option>
+                                                <option value="9">9: FAILED_PRECONDITION</option>
+                                                <option value="10">10: ABORTED</option>
+                                                <option value="11">11: OUT_OF_RANGE</option>
+                                                <option value="12">12: UNIMPLEMENTED</option>
+                                                <option value="13">13: INTERNAL</option>
+                                                <option value="14">14: UNAVAILABLE</option>
+                                                <option value="15">15: DATA_LOSS</option>
+                                                <option value="16">16: UNAUTHENTICATED</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="mock-form-group flex-2">
+                                            <label for="grpcStatusMessageInput">Custom grpc-message:</label>
+                                            <input type="text" id="grpcStatusMessageInput" class="mock-path-input" placeholder="e.g. User not found or token expired" />
+                                        </div>
+
+                                        <div class="mock-form-group">
+                                            <label>Latency Delay:</label>
+                                            <div class="delay-chip-group">
+                                                <button type="button" class="grpc-delay-chip active" data-delay="0">0ms</button>
+                                                <button type="button" class="grpc-delay-chip" data-delay="100">100ms</button>
+                                                <button type="button" class="grpc-delay-chip" data-delay="300">300ms</button>
+                                                <button type="button" class="grpc-delay-chip" data-delay="800">800ms</button>
+                                                <input type="number" id="grpcDelayInput" class="delay-custom-input" value="0" min="0" max="60000" placeholder="ms" />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- gRPC Editor Subtabs Bar -->
+                                    <div class="mock-editor-tabs-bar">
+                                        <div class="editor-subtabs">
+                                            <button id="grpcTabPayloadBtn" class="editor-tab-btn active">📦 Response Payload</button>
+                                            <button id="grpcTabTrailersBtn" class="editor-tab-btn">🏷️ Metadata & Trailers</button>
+                                            <button id="grpcTabGrpcurlBtn" class="editor-tab-btn">🧪 grpcurl Snippet</button>
+                                        </div>
+                                        <div class="editor-subtab-actions">
+                                            <button id="generateGrpcTemplateBtn" class="secondary tiny-btn">🪄 Auto-Generate</button>
+                                            <button id="formatGrpcBodyBtn" class="secondary tiny-btn">✨ Format JSON</button>
+                                            <button id="minifyGrpcBodyBtn" class="secondary tiny-btn">🪄 Minify</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Subtab 1: Response Protobuf JSON Payload -->
+                                    <div id="grpcEditorPayloadSection" class="mock-editor-content-area">
+                                        <textarea id="grpcResponseBodyInput" class="mock-code-textarea" spellcheck="false" placeholder='{\n  "id": "123",\n  "name": "Budi"\n}'></textarea>
+                                    </div>
+
+                                    <!-- Subtab 2: Custom Metadata (Headers) & Custom Trailers -->
+                                    <div id="grpcEditorTrailersSection" class="mock-editor-content-area hidden">
+                                        <div class="grpc-meta-trailers-grid">
+                                            <!-- Initial Metadata (Headers) -->
+                                            <div class="grpc-meta-box">
+                                                <div class="grpc-meta-header">
+                                                    <label for="grpcResponseMetadataInput">Initial Response Metadata (Headers JSON):</label>
+                                                    <div class="grpc-preset-chips">
+                                                        <button type="button" class="grpc-meta-preset-btn" data-preset='{"x-trace-id": "trc_9981"}'>+ Trace ID</button>
+                                                        <button type="button" class="grpc-meta-preset-btn" data-preset='{"authorization": "Bearer mock-token-xyz"}'>+ Auth</button>
+                                                    </div>
+                                                </div>
+                                                <textarea id="grpcResponseMetadataInput" class="mock-code-textarea grpc-meta-textarea" spellcheck="false" placeholder='{\n  "x-trace-id": "trc_9981"\n}'></textarea>
+                                            </div>
+
+                                            <!-- Trailing Metadata (Trailers) -->
+                                            <div class="grpc-meta-box">
+                                                <div class="grpc-meta-header">
+                                                    <label for="grpcResponseTrailersInput">Trailing Response Metadata (Trailers JSON):</label>
+                                                    <div class="grpc-preset-chips">
+                                                        <button type="button" class="grpc-trailer-preset-btn" data-preset='{"x-rate-limit-remaining": "100"}'>+ Rate Limit</button>
+                                                        <button type="button" class="grpc-trailer-preset-btn" data-preset='{"x-response-time": "12ms"}'>+ Latency</button>
+                                                    </div>
+                                                </div>
+                                                <textarea id="grpcResponseTrailersInput" class="mock-code-textarea grpc-meta-textarea" spellcheck="false" placeholder='{\n  "x-rate-limit-remaining": "100"\n}'></textarea>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Subtab 3: grpcurl Terminal Snippet -->
+                                    <div id="grpcEditorGrpcurlSection" class="mock-editor-content-area hidden">
+                                        <div class="curl-preview-panel">
+                                            <div class="curl-preview-header">
+                                                <span>Ready-to-run grpcurl command for this RPC:</span>
+                                                <button id="copyGrpcurlBoxBtn" class="primary tiny-btn">📋 Copy Command</button>
+                                            </div>
+                                            <pre id="grpcCurlPreviewBox" class="curl-code-box">grpcurl -plaintext -d '{"user_id": "1"}' localhost:50051 user.UserService/GetUser</pre>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3. Traffic Logs Panel -->
+                <div id="mockTrafficPanel" class="mock-panel-view hidden">
+                    <div class="mock-traffic-container">
+                        <!-- Toolbar with Live Recording Indicator -->
+                        <div class="mock-traffic-toolbar">
+                            <div class="mock-traffic-left">
+                                <div class="live-recording-badge">
+                                    <span class="pulse-dot"></span>
+                                    <span>LIVE TRAFFIC CAPTURE</span>
+                                </div>
+                                <div class="mock-traffic-filters">
+                                    <select id="trafficFilterType">
+                                        <option value="ALL">All Protocols</option>
+                                        <option value="REST">REST Only</option>
+                                        <option value="GRPC">gRPC Only</option>
+                                    </select>
+                                    <select id="trafficFilterSource">
+                                        <option value="ALL">All Sources</option>
+                                        <option value="MOCK">Mocked Only</option>
+                                        <option value="FORWARDED">Forwarded Only</option>
+                                    </select>
+                                    <input type="text" id="trafficFilterSearch" placeholder="🔍 Search path, status..." spellcheck="false" />
+                                </div>
+                            </div>
+
+                            <div class="mock-traffic-actions">
+                                <button id="refreshTrafficLogsBtn" class="secondary small-btn">🔄 Refresh</button>
+                                <button id="clearTrafficLogsBtn" class="danger small-btn">🗑️ Clear</button>
+                            </div>
+                        </div>
+
+                        <!-- Traffic Table & Inspector Split -->
+                        <div class="mock-traffic-content-split">
+                            <!-- Table list of logs -->
+                            <div class="mock-traffic-table-wrapper">
+                                <table class="mock-traffic-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Time</th>
+                                            <th>Protocol</th>
+                                            <th>Method / RPC</th>
+                                            <th>Path / Service</th>
+                                            <th>Status</th>
+                                            <th>Source</th>
+                                            <th>Latency</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="trafficLogsTableBody">
+                                        <!-- Logs rendered here -->
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <!-- Detail Drawer of Selected Log -->
+                            <div id="trafficDetailDrawer" class="mock-traffic-detail-drawer">
+                                <div class="detail-drawer-header">
+                                    <div>
+                                        <h4>Traffic Inspector</h4>
+                                        <span id="detailDrawerSubtitle" class="detail-subtitle">Click a request from the table</span>
+                                    </div>
+                                    <button id="closeDetailDrawerBtn" class="tiny-close-btn hidden">✕</button>
+                                </div>
+                                <div id="trafficDetailContent" class="detail-drawer-body">
+                                    <div class="detail-empty-placeholder">Select a request from the left table to inspect full headers, body payloads, and record it as a mock rule.</div>
+                                </div>
                             </div>
                         </div>
                     </div>
