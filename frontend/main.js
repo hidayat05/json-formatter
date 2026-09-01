@@ -8,6 +8,7 @@ const language = document.getElementById("languageSelect");
 const classNameInput = document.getElementById("classNameInputText");
 
 const converterTabBtn = document.getElementById("converterTabBtn");
+const jsonEditorTabBtn = document.getElementById("jsonEditorTabBtn");
 const compareTabBtn = document.getElementById("compareTabBtn");
 const mermaidTabBtn = document.getElementById("mermaidTabBtn");
 const imageResizerTabBtn = document.getElementById("imageResizerTabBtn");
@@ -16,6 +17,7 @@ const tracerouteTabBtn = document.getElementById("tracerouteTabBtn");
 const jsonHtmlTabBtn = document.getElementById("jsonHtmlTabBtn");
 const urlTabBtn = document.getElementById("urlTabBtn");
 const converterSection = document.getElementById("converterSection");
+const jsonEditorSection = document.getElementById("jsonEditorSection");
 const compareSection = document.getElementById("compareSection");
 const mermaidSection = document.getElementById("mermaidSection");
 const imageResizerSection = document.getElementById("imageResizerSection");
@@ -66,6 +68,26 @@ const urlDecodeBtn = document.getElementById("urlDecodeBtn");
 const urlReconstructBtn = document.getElementById("urlReconstructBtn");
 const urlClearBtn = document.getElementById("urlClearBtn");
 const copyUrlInputBtn = document.getElementById("copyUrlInputBtn");
+ 
+// JSON Editor elements
+const jsonEditorRawInput = document.getElementById("jsonEditorRawInput");
+const jsonEditorTreeContainer = document.getElementById("jsonEditorTreeContainer");
+const jsonEditorSearchInput = document.getElementById("jsonEditorSearchInput");
+const jsonEditorStats = document.getElementById("jsonEditorStats");
+const jsonEditorErrorBanner = document.getElementById("jsonEditorErrorBanner");
+const jsonEditorSampleSelect = document.getElementById("jsonEditorSampleSelect");
+const jsonEditorCaseSelect = document.getElementById("jsonEditorCaseSelect");
+const jsonEditorFormatBtn = document.getElementById("jsonEditorFormatBtn");
+const jsonEditorMinifyBtn = document.getElementById("jsonEditorMinifyBtn");
+const jsonEditorAutoFixBtn = document.getElementById("jsonEditorAutoFixBtn");
+const jsonEditorUnpackAllBtn = document.getElementById("jsonEditorUnpackAllBtn");
+const jsonEditorMaskPiiBtn = document.getElementById("jsonEditorMaskPiiBtn");
+const jsonEditorExpandAllBtn = document.getElementById("jsonEditorExpandAllBtn");
+const jsonEditorCollapseAllBtn = document.getElementById("jsonEditorCollapseAllBtn");
+const jsonEditorCopyBtn = document.getElementById("jsonEditorCopyBtn");
+const jsonEditorDownloadBtn = document.getElementById("jsonEditorDownloadBtn");
+const jsonEditorClearBtn = document.getElementById("jsonEditorClearBtn");
+const copyJsonEditorRawBtn = document.getElementById("copyJsonEditorRawBtn");
 
 // Mermaid elements
 const mermaidInput = document.getElementById("mermaidInput");
@@ -323,6 +345,7 @@ function serializeDiff(entries) {
 
 function setActiveTab(tab) {
   const isConverter = tab === "converter";
+  const isJsonEditor = tab === "jsonEditor";
   const isCompare = tab === "compare";
   const isMermaid = tab === "mermaid";
   const isImageResizer = tab === "imageResizer";
@@ -332,6 +355,7 @@ function setActiveTab(tab) {
   const isUrl = tab === "url";
 
   converterSection.classList.toggle("hidden", !isConverter);
+  jsonEditorSection.classList.toggle("hidden", !isJsonEditor);
   compareSection.classList.toggle("hidden", !isCompare);
   mermaidSection.classList.toggle("hidden", !isMermaid);
   imageResizerSection.classList.toggle("hidden", !isImageResizer);
@@ -341,6 +365,7 @@ function setActiveTab(tab) {
   urlSection.classList.toggle("hidden", !isUrl);
 
   converterTabBtn.classList.toggle("active", isConverter);
+  jsonEditorTabBtn.classList.toggle("active", isJsonEditor);
   compareTabBtn.classList.toggle("active", isCompare);
   mermaidTabBtn.classList.toggle("active", isMermaid);
   imageResizerTabBtn.classList.toggle("active", isImageResizer);
@@ -348,6 +373,10 @@ function setActiveTab(tab) {
   tracerouteTabBtn.classList.toggle("active", isTraceroute);
   jsonHtmlTabBtn.classList.toggle("active", isJsonHtml);
   urlTabBtn.classList.toggle("active", isUrl);
+
+  if (isJsonEditor && !jsonEditorInitialized) {
+    initJsonEditor();
+  }
 }
 
 function showStatus(message, isError = false) {
@@ -2152,6 +2181,963 @@ document.getElementById("urlClearBtn").addEventListener("click", handleUrlClear)
 document.getElementById("urlAddParamBtn").addEventListener("click", () => addParamRow("", ""));
 document.getElementById("copyUrlInputBtn").addEventListener("click", handleCopyUrlInput);
 
+// ==========================================================================
+// JSON Editor Implementation
+// ==========================================================================
+
+let jsonEditorData = null;
+let jsonEditorCollapsedPaths = new Set();
+let jsonEditorSearchTerm = "";
+let jsonEditorInitialized = false;
+let jsonEditorSyncDebounce = null;
+
+const JSON_EDITOR_SAMPLES = {
+  stringified_api: {
+    event_id: "evt_984321",
+    timestamp: "2026-09-01T12:00:00Z",
+    source: "kafka.orders.events",
+    retry_count: 0,
+    headers: {
+      "x-correlation-id": "corr-4491-aa",
+      "x-auth-token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
+    },
+    raw_payload: "{\"order_id\":\"ORD-9912\",\"customer_name\":\"Budi Santoso\",\"email\":\"budi.santoso@example.com\",\"items\":[{\"product_id\":\"PROD-1\",\"name\":\"Mechanical Keyboard\",\"qty\":1,\"price\":750000}],\"payment\":{\"method\":\"qris\",\"paid\":true,\"amount\":750000}}",
+    meta_info: "{\"ip_address\":\"192.168.1.1\",\"user_agent\":\"Mozilla/5.0\"}"
+  },
+  ecommerce: {
+    store_name: "Toko Palugada Official",
+    currency: "IDR",
+    total_products: 2,
+    categories: ["Electronics", "Accessories"],
+    products: [
+      {
+        id: 101,
+        name: "Wireless Noise-Cancelling Headphones",
+        brand: "SonicMaster",
+        price: 1250000,
+        in_stock: true,
+        stock_count: 45,
+        rating: 4.8,
+        tags: ["bluetooth", "audio", "sale"],
+        specifications: {
+          battery_hours: 30,
+          weight_grams: 250,
+          warranty_months: 12
+        }
+      },
+      {
+        id: 102,
+        name: "Ergonomic Aluminium Laptop Stand",
+        brand: "FlexiDesk",
+        price: 350000,
+        in_stock: true,
+        stock_count: 120,
+        rating: 4.9,
+        tags: ["desk", "ergonomics"],
+        specifications: {
+          material: "Aluminium Alloy",
+          weight_grams: 450,
+          warranty_months: 6
+        }
+      }
+    ]
+  },
+  user_profile: {
+    user_id: 2184,
+    username: "johndoe",
+    email: "john.doe@example.com",
+    role: "administrator",
+    is_active: true,
+    profile: {
+      first_name: "John",
+      last_name: "Doe",
+      phone: "+6281234567890",
+      avatar_url: "https://avatar.iran.liara.run/public/boy",
+      bio: "Fullstack Engineer & Palugada Power User"
+    },
+    preferences: {
+      theme: "dark",
+      notifications: {
+        email: true,
+        sms: false,
+        push: true
+      },
+      languages: ["en", "id"]
+    },
+    login_history: [
+      { ip: "103.20.18.5", timestamp: "2026-09-01T08:30:00Z", success: true },
+      { ip: "103.20.18.5", timestamp: "2026-08-31T14:15:00Z", success: true }
+    ]
+  }
+};
+
+function initJsonEditor() {
+  jsonEditorInitialized = true;
+  if (!jsonEditorRawInput.value.trim()) {
+    jsonEditorData = JSON.parse(JSON.stringify(JSON_EDITOR_SAMPLES.ecommerce));
+    updateJsonEditorRawFromData();
+  } else {
+    updateJsonEditorDataFromRaw(true);
+  }
+}
+
+function getValueType(val) {
+  if (val === null) return "null";
+  if (Array.isArray(val)) return "array";
+  return typeof val;
+}
+
+function tryParseJsonString(val) {
+  if (typeof val !== "string") return null;
+  const trimmed = val.trim();
+  if (!((trimmed.startsWith("{") && trimmed.endsWith("}")) || (trimmed.startsWith("[") && trimmed.endsWith("]")))) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(trimmed);
+    if (parsed !== null && typeof parsed === "object") {
+      return parsed;
+    }
+  } catch (e) {}
+  return null;
+}
+
+function unpackAllStringifiedJson(data) {
+  if (typeof data === "string") {
+    const parsed = tryParseJsonString(data);
+    if (parsed !== null) {
+      return unpackAllStringifiedJson(parsed);
+    }
+    return data;
+  }
+  if (Array.isArray(data)) {
+    return data.map(item => unpackAllStringifiedJson(item));
+  }
+  if (data && typeof data === "object") {
+    const res = {};
+    for (const [k, v] of Object.entries(data)) {
+      res[k] = unpackAllStringifiedJson(v);
+    }
+    return res;
+  }
+  return data;
+}
+
+function generateDefaultFromSchema(sample) {
+  if (sample === null || sample === undefined) return null;
+  if (Array.isArray(sample)) {
+    if (sample.length === 0) return [];
+    return [generateDefaultFromSchema(sample[0])];
+  }
+  if (typeof sample === "object") {
+    const res = {};
+    for (const k of Object.keys(sample)) {
+      res[k] = generateDefaultFromSchema(sample[k]);
+    }
+    return res;
+  }
+  if (typeof sample === "string") return "";
+  if (typeof sample === "number") return 0;
+  if (typeof sample === "boolean") return false;
+  return "";
+}
+
+function getDefaultValueForType(type) {
+  switch (type) {
+    case "string": return "";
+    case "number": return 0;
+    case "boolean": return false;
+    case "null": return null;
+    case "array": return [];
+    case "object": return {};
+    default: return "";
+  }
+}
+
+function getValueAtPath(data, path) {
+  let curr = data;
+  for (const seg of path) {
+    if (curr === null || curr === undefined) return undefined;
+    curr = curr[seg];
+  }
+  return curr;
+}
+
+function setValueAtPath(data, path, value) {
+  if (path.length === 0) {
+    jsonEditorData = value;
+    return;
+  }
+  let curr = data;
+  for (let i = 0; i < path.length - 1; i++) {
+    curr = curr[path[i]];
+  }
+  curr[path[path.length - 1]] = value;
+}
+
+function deleteValueAtPath(data, path) {
+  if (path.length === 0) {
+    jsonEditorData = {};
+    return;
+  }
+  let curr = data;
+  for (let i = 0; i < path.length - 1; i++) {
+    curr = curr[path[i]];
+  }
+  const lastKey = path[path.length - 1];
+  if (Array.isArray(curr)) {
+    curr.splice(Number(lastKey), 1);
+  } else if (curr && typeof curr === "object") {
+    delete curr[lastKey];
+  }
+}
+
+function renameKeyAtPath(data, parentPath, oldKey, newKey) {
+  if (oldKey === newKey) return;
+  const parent = parentPath.length === 0 ? data : getValueAtPath(data, parentPath);
+  if (!parent || typeof parent !== "object" || Array.isArray(parent)) return;
+
+  const entries = Object.entries(parent);
+  const newObj = {};
+  for (const [k, v] of entries) {
+    if (k === oldKey) {
+      newObj[newKey] = v;
+    } else {
+      newObj[k] = v;
+    }
+  }
+  if (parentPath.length === 0) {
+    jsonEditorData = newObj;
+  } else {
+    setValueAtPath(data, parentPath, newObj);
+  }
+}
+
+function autoFixMalformedJsonText(text) {
+  if (!text || !text.trim()) return "{}";
+  let cleaned = text.trim();
+  cleaned = cleaned.replace(/\/\/.*$/gm, "");
+  cleaned = cleaned.replace(/\/\*[\s\S]*?\*\//g, "");
+  cleaned = cleaned.replace(/([{,]\s*)([a-zA-Z0-9_$]+)\s*:/g, '$1"$2":');
+  cleaned = cleaned.replace(/'([^'\\]*(?:\\.[^'\\]*)*)'/g, (m, content) => {
+    return '"' + content.replace(/"/g, '\\"') + '"';
+  });
+  cleaned = cleaned.replace(/,\s*([}\]])/g, "$1");
+  return cleaned;
+}
+
+function convertKeyCase(str, targetCase) {
+  const words = str
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .replace(/[-_]+/g, ' ')
+    .trim()
+    .toLowerCase()
+    .split(/\s+/);
+  if (words.length === 0 || words[0] === '') return str;
+
+  switch (targetCase) {
+    case "camel":
+      return words[0] + words.slice(1).map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+    case "snake":
+      return words.join('_');
+    case "kebab":
+      return words.join('-');
+    case "pascal":
+      return words.map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('');
+    default:
+      return str;
+  }
+}
+
+function convertAllKeysCase(data, targetCase) {
+  if (Array.isArray(data)) {
+    return data.map(item => convertAllKeysCase(item, targetCase));
+  }
+  if (data && typeof data === "object") {
+    const res = {};
+    for (const [k, v] of Object.entries(data)) {
+      const newKey = convertKeyCase(k, targetCase);
+      res[newKey] = convertAllKeysCase(v, targetCase);
+    }
+    return res;
+  }
+  return data;
+}
+
+function maskPiiData(data) {
+  if (typeof data === "string") {
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data)) {
+      const parts = data.split('@');
+      const name = parts[0];
+      const maskedName = name.length > 2 ? name.slice(0, 2) + "***" : "***";
+      return `${maskedName}@${parts[1]}`;
+    }
+    if (/^\+?[0-9\s\-()]{8,20}$/.test(data) && /\d{4,}/.test(data)) {
+      return data.slice(0, 3) + "****" + data.slice(-2);
+    }
+    return data;
+  }
+  if (Array.isArray(data)) {
+    return data.map(maskPiiData);
+  }
+  if (data && typeof data === "object") {
+    const res = {};
+    for (const [k, v] of Object.entries(data)) {
+      const lowerKey = k.toLowerCase();
+      if (lowerKey.includes("password") || lowerKey.includes("secret") || lowerKey.includes("token") || lowerKey.includes("api_key") || lowerKey.includes("auth")) {
+        res[k] = "********";
+      } else {
+        res[k] = maskPiiData(v);
+      }
+    }
+    return res;
+  }
+  return data;
+}
+
+function formatJsonPath(path) {
+  if (path.length === 0) return "$";
+  let str = "$";
+  for (const seg of path) {
+    if (typeof seg === "number" || /^\d+$/.test(seg)) {
+      str += `[${seg}]`;
+    } else if (/^[a-zA-Z_$][a-zA-Z0-9_$]*$/.test(seg)) {
+      str += `.${seg}`;
+    } else {
+      str += `["${seg}"]`;
+    }
+  }
+  return str;
+}
+
+function updateJsonEditorRawFromData() {
+  try {
+    const formatted = JSON.stringify(jsonEditorData, null, 2);
+    jsonEditorRawInput.value = formatted;
+    jsonEditorErrorBanner.classList.add("hidden");
+    jsonEditorErrorBanner.textContent = "";
+    jsonEditorStats.className = "editor-stats-badge";
+    const bytes = new Blob([formatted]).size;
+    jsonEditorStats.textContent = `Valid JSON • ${bytes} B`;
+    renderJsonEditorTree();
+  } catch (err) {
+    jsonEditorErrorBanner.classList.remove("hidden");
+    jsonEditorErrorBanner.textContent = "Error updating JSON: " + err.message;
+    jsonEditorStats.className = "editor-stats-badge error";
+    jsonEditorStats.textContent = "Parse Error";
+  }
+}
+
+function updateJsonEditorDataFromRaw(renderTree = true) {
+  const raw = jsonEditorRawInput.value.trim();
+  if (!raw) {
+    jsonEditorData = {};
+    jsonEditorErrorBanner.classList.add("hidden");
+    jsonEditorStats.className = "editor-stats-badge";
+    jsonEditorStats.textContent = "Empty";
+    if (renderTree) renderJsonEditorTree();
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(raw);
+    jsonEditorData = parsed;
+    jsonEditorErrorBanner.classList.add("hidden");
+    jsonEditorErrorBanner.textContent = "";
+    jsonEditorStats.className = "editor-stats-badge";
+    const bytes = new Blob([raw]).size;
+    jsonEditorStats.textContent = `Valid JSON • ${bytes} B`;
+    if (renderTree) renderJsonEditorTree();
+  } catch (err) {
+    jsonEditorErrorBanner.classList.remove("hidden");
+    jsonEditorErrorBanner.textContent = "Invalid JSON: " + err.message;
+    jsonEditorStats.className = "editor-stats-badge error";
+    jsonEditorStats.textContent = "Syntax Error";
+  }
+}
+
+function renderJsonEditorTree() {
+  jsonEditorTreeContainer.innerHTML = "";
+  if (jsonEditorData === null || jsonEditorData === undefined) {
+    jsonEditorTreeContainer.innerHTML = `
+      <div class="tree-empty-placeholder">
+        <p>No JSON data loaded</p>
+        <button class="primary" id="treeLoadSampleBtn">Load Sample JSON</button>
+      </div>
+    `;
+    const loadSampleBtn = document.getElementById("treeLoadSampleBtn");
+    if (loadSampleBtn) {
+      loadSampleBtn.addEventListener("click", () => {
+        jsonEditorData = JSON.parse(JSON.stringify(JSON_EDITOR_SAMPLES.ecommerce));
+        updateJsonEditorRawFromData();
+      });
+    }
+    return;
+  }
+
+  const rootEl = createTreeNode(jsonEditorData, [], null, true);
+  jsonEditorTreeContainer.appendChild(rootEl);
+}
+
+function createTreeNode(data, path, keyName = null, isRoot = false) {
+  const nodeEl = document.createElement("div");
+  nodeEl.className = `tree-node ${isRoot ? "root-node" : ""}`;
+  const pathStr = path.join(".");
+  const isCollapsed = jsonEditorCollapsedPaths.has(pathStr);
+  const type = getValueType(data);
+  const isContainer = type === "object" || type === "array";
+
+  const rowEl = document.createElement("div");
+  rowEl.className = "tree-row";
+
+  // Check search match
+  if (jsonEditorSearchTerm) {
+    const term = jsonEditorSearchTerm.toLowerCase();
+    const keyMatch = keyName !== null && String(keyName).toLowerCase().includes(term);
+    const valMatch = !isContainer && data !== null && String(data).toLowerCase().includes(term);
+    if (keyMatch || valMatch) {
+      rowEl.classList.add("highlight-match");
+    }
+  }
+
+  // 1. Toggle icon for object/array
+  if (isContainer) {
+    const toggleEl = document.createElement("span");
+    toggleEl.className = `tree-toggle ${isCollapsed ? "collapsed" : ""}`;
+    toggleEl.textContent = "▼";
+    toggleEl.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (jsonEditorCollapsedPaths.has(pathStr)) {
+        jsonEditorCollapsedPaths.delete(pathStr);
+      } else {
+        jsonEditorCollapsedPaths.add(pathStr);
+      }
+      renderJsonEditorTree();
+    });
+    rowEl.appendChild(toggleEl);
+  } else {
+    const spacer = document.createElement("span");
+    spacer.style.width = "14px";
+    spacer.style.display = "inline-block";
+    rowEl.appendChild(spacer);
+  }
+
+  // 2. Key input or Array Index
+  if (!isRoot) {
+    const parentPath = path.slice(0, -1);
+    const parentVal = parentPath.length === 0 ? jsonEditorData : getValueAtPath(jsonEditorData, parentPath);
+    const parentIsArray = Array.isArray(parentVal);
+
+    if (parentIsArray) {
+      const indexBadge = document.createElement("span");
+      indexBadge.className = "tree-array-index";
+      indexBadge.textContent = `[${keyName}]`;
+      rowEl.appendChild(indexBadge);
+    } else {
+      const keyInput = document.createElement("input");
+      keyInput.type = "text";
+      keyInput.className = "tree-key-input";
+      keyInput.value = keyName;
+      keyInput.spellcheck = false;
+      keyInput.addEventListener("change", (e) => {
+        const newKey = e.target.value.trim();
+        if (newKey && newKey !== keyName) {
+          renameKeyAtPath(jsonEditorData, parentPath, keyName, newKey);
+          updateJsonEditorRawFromData();
+        } else {
+          e.target.value = keyName;
+        }
+      });
+      rowEl.appendChild(keyInput);
+    }
+
+    const colon = document.createElement("span");
+    colon.className = "tree-colon";
+    colon.textContent = ":";
+    rowEl.appendChild(colon);
+  } else {
+    const rootBadge = document.createElement("span");
+    rootBadge.className = "tree-array-index";
+    rootBadge.textContent = "root";
+    rowEl.appendChild(rootBadge);
+
+    const colon = document.createElement("span");
+    colon.className = "tree-colon";
+    colon.textContent = ":";
+    rowEl.appendChild(colon);
+  }
+
+  // 3. Value editor
+  let stringifiedJsonParsed = null;
+  if (type === "string") {
+    stringifiedJsonParsed = tryParseJsonString(data);
+    const valInput = document.createElement("input");
+    valInput.type = "text";
+    valInput.className = "tree-value-input";
+    valInput.value = data;
+    valInput.spellcheck = false;
+    valInput.addEventListener("change", (e) => {
+      setValueAtPath(jsonEditorData, path, e.target.value);
+      updateJsonEditorRawFromData();
+    });
+    rowEl.appendChild(valInput);
+  } else if (type === "number") {
+    const valInput = document.createElement("input");
+    valInput.type = "number";
+    valInput.step = "any";
+    valInput.className = "tree-value-input";
+    valInput.value = data;
+    valInput.spellcheck = false;
+    valInput.addEventListener("change", (e) => {
+      const num = Number(e.target.value);
+      setValueAtPath(jsonEditorData, path, isNaN(num) ? 0 : num);
+      updateJsonEditorRawFromData();
+    });
+    rowEl.appendChild(valInput);
+  } else if (type === "boolean") {
+    const boolSelect = document.createElement("select");
+    boolSelect.className = "tree-bool-select";
+    boolSelect.innerHTML = `
+      <option value="true" ${data === true ? "selected" : ""}>true</option>
+      <option value="false" ${data === false ? "selected" : ""}>false</option>
+    `;
+    boolSelect.addEventListener("change", (e) => {
+      setValueAtPath(jsonEditorData, path, e.target.value === "true");
+      updateJsonEditorRawFromData();
+    });
+    rowEl.appendChild(boolSelect);
+  } else if (type === "null") {
+    const nullSpan = document.createElement("span");
+    nullSpan.className = "tree-null-value";
+    nullSpan.textContent = "null";
+    rowEl.appendChild(nullSpan);
+  } else if (type === "object") {
+    const keysCount = Object.keys(data || {}).length;
+    const objSpan = document.createElement("span");
+    objSpan.innerHTML = `<span class="tree-bracket">{ }</span> <span class="tree-items-count">${keysCount} ${keysCount === 1 ? 'key' : 'keys'}</span>`;
+    rowEl.appendChild(objSpan);
+  } else if (type === "array") {
+    const itemsCount = (data || []).length;
+    const arrSpan = document.createElement("span");
+    arrSpan.innerHTML = `<span class="tree-bracket">[ ]</span> <span class="tree-items-count">${itemsCount} ${itemsCount === 1 ? 'item' : 'items'}</span>`;
+    rowEl.appendChild(arrSpan);
+  }
+
+  // 4. Type Badge / Type Switcher
+  const typeBadge = document.createElement("span");
+  typeBadge.className = `tree-type-badge type-${type}`;
+  typeBadge.textContent = type;
+  rowEl.appendChild(typeBadge);
+
+  const typeSelect = document.createElement("select");
+  typeSelect.className = "tree-type-select";
+  typeSelect.innerHTML = `
+    <option value="string" ${type === "string" ? "selected" : ""}>str</option>
+    <option value="number" ${type === "number" ? "selected" : ""}>num</option>
+    <option value="boolean" ${type === "boolean" ? "selected" : ""}>bool</option>
+    <option value="null" ${type === "null" ? "selected" : ""}>null</option>
+    <option value="object" ${type === "object" ? "selected" : ""}>obj</option>
+    <option value="array" ${type === "array" ? "selected" : ""}>arr</option>
+  `;
+  typeSelect.addEventListener("change", (e) => {
+    const newType = e.target.value;
+    if (newType !== type) {
+      const defaultVal = getDefaultValueForType(newType);
+      setValueAtPath(jsonEditorData, path, defaultVal);
+      updateJsonEditorRawFromData();
+    }
+  });
+  rowEl.appendChild(typeSelect);
+
+  // 5. Action Buttons Toolbar
+  const actionsEl = document.createElement("div");
+  actionsEl.className = "tree-actions";
+
+  // If stringified JSON is detected, show glowing Unpack button
+  if (stringifiedJsonParsed !== null) {
+    const unpackBtn = document.createElement("button");
+    unpackBtn.className = "tree-btn tree-btn-unpack";
+    unpackBtn.innerHTML = "🔄 Unpack JSON";
+    unpackBtn.title = "Parse this string into a nested JSON structure";
+    unpackBtn.addEventListener("click", () => {
+      setValueAtPath(jsonEditorData, path, stringifiedJsonParsed);
+      updateJsonEditorRawFromData();
+      showStatus("✓ Stringified JSON unpacked into object/array");
+    });
+    actionsEl.appendChild(unpackBtn);
+  }
+
+  // If Object: Add Property / Sub-Object / Sub-Array
+  if (type === "object") {
+    const addPropBtn = document.createElement("button");
+    addPropBtn.className = "tree-btn tree-btn-add";
+    addPropBtn.textContent = "+ Key";
+    addPropBtn.title = "Add new property";
+    addPropBtn.addEventListener("click", () => {
+      let keyIndex = 1;
+      while (data.hasOwnProperty(`newKey${keyIndex}`)) keyIndex++;
+      data[`newKey${keyIndex}`] = "";
+      updateJsonEditorRawFromData();
+    });
+    actionsEl.appendChild(addPropBtn);
+
+    const addObjBtn = document.createElement("button");
+    addObjBtn.className = "tree-btn tree-btn-add";
+    addObjBtn.textContent = "+ {}";
+    addObjBtn.title = "Add nested object";
+    addObjBtn.addEventListener("click", () => {
+      let keyIndex = 1;
+      while (data.hasOwnProperty(`newObject${keyIndex}`)) keyIndex++;
+      data[`newObject${keyIndex}`] = {};
+      updateJsonEditorRawFromData();
+    });
+    actionsEl.appendChild(addObjBtn);
+
+    const addArrBtn = document.createElement("button");
+    addArrBtn.className = "tree-btn tree-btn-add";
+    addArrBtn.textContent = "+ []";
+    addArrBtn.title = "Add nested array";
+    addArrBtn.addEventListener("click", () => {
+      let keyIndex = 1;
+      while (data.hasOwnProperty(`newArray${keyIndex}`)) keyIndex++;
+      data[`newArray${keyIndex}`] = [];
+      updateJsonEditorRawFromData();
+    });
+    actionsEl.appendChild(addArrBtn);
+
+    if (!isRoot) {
+      const stringifyBtn = document.createElement("button");
+      stringifyBtn.className = "tree-btn";
+      stringifyBtn.textContent = "📦 Stringify";
+      stringifyBtn.title = "Convert this object into an escaped JSON string";
+      stringifyBtn.addEventListener("click", () => {
+        setValueAtPath(jsonEditorData, path, JSON.stringify(data));
+        updateJsonEditorRawFromData();
+        showStatus("✓ Object converted to JSON string");
+      });
+      actionsEl.appendChild(stringifyBtn);
+    }
+  }
+
+  // If Array: Smart Add Item with Default Schema, Add Empty, Duplicate, Reorder
+  if (type === "array") {
+    const addDefaultBtn = document.createElement("button");
+    addDefaultBtn.className = "tree-btn tree-btn-add-default";
+    addDefaultBtn.innerHTML = "✨ + Add Item (Default)";
+    addDefaultBtn.title = "Add new item duplicating the schema with default empty values";
+    addDefaultBtn.addEventListener("click", () => {
+      let newItem;
+      if (data.length > 0) {
+        newItem = generateDefaultFromSchema(data[0]);
+      } else {
+        newItem = { id: 0, name: "", active: false };
+      }
+      data.push(newItem);
+      updateJsonEditorRawFromData();
+      showStatus("✓ Added new list item with default values");
+    });
+    actionsEl.appendChild(addDefaultBtn);
+
+    const addEmptyBtn = document.createElement("button");
+    addEmptyBtn.className = "tree-btn tree-btn-add";
+    addEmptyBtn.textContent = "+ Item";
+    addEmptyBtn.title = "Add empty primitive item";
+    addEmptyBtn.addEventListener("click", () => {
+      data.push("");
+      updateJsonEditorRawFromData();
+    });
+    actionsEl.appendChild(addEmptyBtn);
+
+    if (!isRoot) {
+      const stringifyBtn = document.createElement("button");
+      stringifyBtn.className = "tree-btn";
+      stringifyBtn.textContent = "📦 Stringify";
+      stringifyBtn.title = "Convert this array into an escaped JSON string";
+      stringifyBtn.addEventListener("click", () => {
+        setValueAtPath(jsonEditorData, path, JSON.stringify(data));
+        updateJsonEditorRawFromData();
+        showStatus("✓ Array converted to JSON string");
+      });
+      actionsEl.appendChild(stringifyBtn);
+    }
+  }
+
+  // If parent is Array: Allow Duplicate, Move Up, Move Down
+  if (!isRoot) {
+    const parentPath = path.slice(0, -1);
+    const parentVal = parentPath.length === 0 ? jsonEditorData : getValueAtPath(jsonEditorData, parentPath);
+    if (Array.isArray(parentVal)) {
+      const currentIndex = Number(path[path.length - 1]);
+
+      const dupBtn = document.createElement("button");
+      dupBtn.className = "tree-btn tree-btn-dup";
+      dupBtn.textContent = "📋 Dup";
+      dupBtn.title = "Duplicate this item";
+      dupBtn.addEventListener("click", () => {
+        const cloned = JSON.parse(JSON.stringify(data));
+        parentVal.splice(currentIndex + 1, 0, cloned);
+        updateJsonEditorRawFromData();
+      });
+      actionsEl.appendChild(dupBtn);
+
+      if (currentIndex > 0) {
+        const moveUpBtn = document.createElement("button");
+        moveUpBtn.className = "tree-btn tree-btn-move";
+        moveUpBtn.textContent = "⬆";
+        moveUpBtn.title = "Move Up";
+        moveUpBtn.addEventListener("click", () => {
+          const temp = parentVal[currentIndex];
+          parentVal[currentIndex] = parentVal[currentIndex - 1];
+          parentVal[currentIndex - 1] = temp;
+          updateJsonEditorRawFromData();
+        });
+        actionsEl.appendChild(moveUpBtn);
+      }
+
+      if (currentIndex < parentVal.length - 1) {
+        const moveDownBtn = document.createElement("button");
+        moveDownBtn.className = "tree-btn tree-btn-move";
+        moveDownBtn.textContent = "⬇";
+        moveDownBtn.title = "Move Down";
+        moveDownBtn.addEventListener("click", () => {
+          const temp = parentVal[currentIndex];
+          parentVal[currentIndex] = parentVal[currentIndex + 1];
+          parentVal[currentIndex + 1] = temp;
+          updateJsonEditorRawFromData();
+        });
+        actionsEl.appendChild(moveDownBtn);
+      }
+    }
+
+    // Delete Node Button
+    const delBtn = document.createElement("button");
+    delBtn.className = "tree-btn tree-btn-del";
+    delBtn.textContent = "🗑";
+    delBtn.title = "Delete this node";
+    delBtn.addEventListener("click", () => {
+      deleteValueAtPath(jsonEditorData, path);
+      updateJsonEditorRawFromData();
+    });
+    actionsEl.appendChild(delBtn);
+
+    // Copy JSON Path
+    const copyPathBtn = document.createElement("button");
+    copyPathBtn.className = "tree-btn tree-btn-copy-path";
+    copyPathBtn.textContent = "🔗 Path";
+    copyPathBtn.title = "Copy JSON Path";
+    copyPathBtn.addEventListener("click", async () => {
+      const fullPath = formatJsonPath(path);
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(fullPath);
+        } else {
+          await invoke("plugin:clipboard-manager|write_text", { text: fullPath });
+        }
+        showStatus(`✓ Copied path: ${fullPath}`);
+      } catch (e) {
+        showStatus(`Path: ${fullPath}`);
+      }
+    });
+    actionsEl.appendChild(copyPathBtn);
+  }
+
+  rowEl.appendChild(actionsEl);
+  nodeEl.appendChild(rowEl);
+
+  // 6. Recursively render children if object/array and not collapsed
+  if (isContainer && !isCollapsed) {
+    const childrenContainer = document.createElement("div");
+    childrenContainer.className = "tree-children";
+
+    if (type === "object") {
+      for (const [k, v] of Object.entries(data || {})) {
+        const childNode = createTreeNode(v, [...path, k], k, false);
+        childrenContainer.appendChild(childNode);
+      }
+    } else if (type === "array") {
+      (data || []).forEach((item, idx) => {
+        const childNode = createTreeNode(item, [...path, idx], idx, false);
+        childrenContainer.appendChild(childNode);
+      });
+    }
+
+    nodeEl.appendChild(childrenContainer);
+  }
+
+  return nodeEl;
+}
+
+// JSON Editor Event Listeners
+jsonEditorTabBtn.addEventListener("click", () => setActiveTab("jsonEditor"));
+
+jsonEditorRawInput.addEventListener("input", () => {
+  clearTimeout(jsonEditorSyncDebounce);
+  jsonEditorSyncDebounce = setTimeout(() => {
+    updateJsonEditorDataFromRaw(true);
+  }, 300);
+});
+
+jsonEditorSearchInput.addEventListener("input", (e) => {
+  jsonEditorSearchTerm = e.target.value.trim();
+  renderJsonEditorTree();
+});
+
+jsonEditorFormatBtn.addEventListener("click", () => {
+  try {
+    const raw = jsonEditorRawInput.value.trim();
+    if (raw) {
+      jsonEditorData = JSON.parse(raw);
+      updateJsonEditorRawFromData();
+      showStatus("✓ JSON formatted");
+    }
+  } catch (err) {
+    showStatus("Format failed: " + err.message, true);
+  }
+});
+
+jsonEditorMinifyBtn.addEventListener("click", () => {
+  try {
+    const raw = jsonEditorRawInput.value.trim();
+    if (raw) {
+      const minified = JSON.stringify(JSON.parse(raw));
+      jsonEditorRawInput.value = minified;
+      jsonEditorData = JSON.parse(minified);
+      jsonEditorStats.textContent = `Valid JSON • ${new Blob([minified]).size} B`;
+      renderJsonEditorTree();
+      showStatus("✓ JSON minified");
+    }
+  } catch (err) {
+    showStatus("Minify failed: " + err.message, true);
+  }
+});
+
+jsonEditorAutoFixBtn.addEventListener("click", () => {
+  const raw = jsonEditorRawInput.value;
+  if (!raw.trim()) {
+    showStatus("JSON is empty", true);
+    return;
+  }
+  try {
+    const fixedText = autoFixMalformedJsonText(raw);
+    const parsed = JSON.parse(fixedText);
+    jsonEditorData = parsed;
+    updateJsonEditorRawFromData();
+    showStatus("✓ Auto-repaired malformed JSON successfully!");
+  } catch (err) {
+    showStatus("Auto-fix could not parse: " + err.message, true);
+  }
+});
+
+jsonEditorUnpackAllBtn.addEventListener("click", () => {
+  if (jsonEditorData) {
+    jsonEditorData = unpackAllStringifiedJson(jsonEditorData);
+    updateJsonEditorRawFromData();
+    showStatus("✓ All stringified JSONs unpacked into nested objects!");
+  }
+});
+
+jsonEditorCaseSelect.addEventListener("change", (e) => {
+  const targetCase = e.target.value;
+  if (targetCase && jsonEditorData) {
+    jsonEditorData = convertAllKeysCase(jsonEditorData, targetCase);
+    updateJsonEditorRawFromData();
+    showStatus(`✓ Keys converted to ${targetCase}Case`);
+    e.target.value = "";
+  }
+});
+
+jsonEditorMaskPiiBtn.addEventListener("click", () => {
+  if (jsonEditorData) {
+    jsonEditorData = maskPiiData(jsonEditorData);
+    updateJsonEditorRawFromData();
+    showStatus("✓ Sensitive PII data masked!");
+  }
+});
+
+jsonEditorSampleSelect.addEventListener("change", (e) => {
+  const sampleKey = e.target.value;
+  if (sampleKey && JSON_EDITOR_SAMPLES[sampleKey]) {
+    jsonEditorData = JSON.parse(JSON.stringify(JSON_EDITOR_SAMPLES[sampleKey]));
+    jsonEditorCollapsedPaths.clear();
+    updateJsonEditorRawFromData();
+    showStatus(`✓ Loaded ${sampleKey} sample`);
+    e.target.value = "";
+  }
+});
+
+jsonEditorExpandAllBtn.addEventListener("click", () => {
+  jsonEditorCollapsedPaths.clear();
+  renderJsonEditorTree();
+  showStatus("All nodes expanded");
+});
+
+function collectAllObjectPaths(data, path = []) {
+  if (data && typeof data === "object") {
+    if (path.length > 0) {
+      jsonEditorCollapsedPaths.add(path.join("."));
+    }
+    if (Array.isArray(data)) {
+      data.forEach((item, idx) => collectAllObjectPaths(item, [...path, idx]));
+    } else {
+      for (const [k, v] of Object.entries(data)) {
+        collectAllObjectPaths(v, [...path, k]);
+      }
+    }
+  }
+}
+
+jsonEditorCollapseAllBtn.addEventListener("click", () => {
+  jsonEditorCollapsedPaths.clear();
+  collectAllObjectPaths(jsonEditorData);
+  renderJsonEditorTree();
+  showStatus("All nodes collapsed");
+});
+
+async function handleCopyJsonEditor() {
+  const text = jsonEditorRawInput.value;
+  if (text) {
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(text);
+      } else {
+        await invoke("plugin:clipboard-manager|write_text", { text });
+      }
+      showStatus("✓ JSON copied to clipboard");
+    } catch (e) {
+      showStatus("Failed to copy JSON", true);
+    }
+  }
+}
+
+jsonEditorCopyBtn.addEventListener("click", handleCopyJsonEditor);
+copyJsonEditorRawBtn.addEventListener("click", handleCopyJsonEditor);
+
+jsonEditorDownloadBtn.addEventListener("click", () => {
+  const text = jsonEditorRawInput.value;
+  if (!text) {
+    showStatus("Nothing to download", true);
+    return;
+  }
+  const blob = new Blob([text], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `data_${new Date().toISOString().slice(0, 10)}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showStatus("✓ JSON file downloaded");
+});
+
+jsonEditorClearBtn.addEventListener("click", () => {
+  jsonEditorRawInput.value = "";
+  jsonEditorData = {};
+  jsonEditorCollapsedPaths.clear();
+  updateJsonEditorRawFromData();
+  showStatus("JSON Editor cleared");
+});
+
 setActiveTab("converter");
 renderDiffHtml(EMPTY_DIFF_HTML);
 setTracerouteLoadingState(false);
+initJsonEditor();
+
