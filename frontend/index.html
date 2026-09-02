@@ -11,43 +11,79 @@
             rel="stylesheet"
         />
         <link rel="stylesheet" href="/styles.css" />
-        <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+        <link rel="stylesheet" href="/styles/mermaid.css" />
+        <link rel="stylesheet" href="/styles/image-resizer.css" />
+        <link rel="stylesheet" href="/styles/json-html.css" />
+        <link rel="stylesheet" href="/styles/url-beautifier.css" />
+        <link rel="stylesheet" href="/styles/json-editor.css" />
     </head>
     <body>
         <div class="container">
             <h1>Palugada</h1>
 
             <div class="top-bar">
-                <button id="converterTabBtn" class="tab-button active">
+                <button
+                    id="converterTabBtn"
+                    data-tab="converter"
+                    class="tab-button active"
+                >
                     JSON Converter
                 </button>
-                <button id="jsonEditorTabBtn" class="tab-button">
+                <button
+                    id="jsonEditorTabBtn"
+                    data-tab="jsonEditor"
+                    class="tab-button"
+                >
                     JSON Editor
                 </button>
-                <button id="compareTabBtn" class="tab-button">
+                <button
+                    id="compareTabBtn"
+                    data-tab="compare"
+                    class="tab-button"
+                >
                     JSON Compare
                 </button>
-                <button id="mermaidTabBtn" class="tab-button">
+                <button
+                    id="mermaidTabBtn"
+                    data-tab="mermaid"
+                    class="tab-button"
+                >
                     Mermaid Editor
                 </button>
-                <button id="imageResizerTabBtn" class="tab-button">
+                <button
+                    id="imageResizerTabBtn"
+                    data-tab="imageResizer"
+                    class="tab-button"
+                >
                     Image Resizer
                 </button>
-                <button id="opensslTabBtn" class="tab-button">
+                <button
+                    id="opensslTabBtn"
+                    data-tab="openssl"
+                    class="tab-button"
+                >
                     OpenSSL Cert
                 </button>
-                <button id="tracerouteTabBtn" class="tab-button">
+                <button
+                    id="tracerouteTabBtn"
+                    data-tab="traceroute"
+                    class="tab-button"
+                >
                     Traceroute
                 </button>
-                <button id="jsonHtmlTabBtn" class="tab-button">
+                <button
+                    id="jsonHtmlTabBtn"
+                    data-tab="jsonHtml"
+                    class="tab-button"
+                >
                     JSON to HTML
                 </button>
-                <button id="urlTabBtn" class="tab-button">
+                <button id="urlTabBtn" data-tab="url" class="tab-button">
                     URL Beautify
                 </button>
             </div>
 
-            <div id="converterSection">
+            <div id="converterSection" data-section="converter">
                 <div class="button-group">
                     <button class="primary" id="minifyBtn">Minify JSON</button>
                     <button class="primary" id="formatBtn">Format JSON</button>
@@ -133,7 +169,7 @@
                 </div>
             </div>
 
-            <div id="compareSection" class="hidden">
+            <div id="compareSection" data-section="compare" class="hidden">
                 <div class="button-group">
                     <button class="primary" id="beautifyLeftBtn">
                         Beautify Left
@@ -204,7 +240,7 @@
                 </div>
             </div>
 
-            <div id="mermaidSection" class="hidden">
+            <div id="mermaidSection" data-section="mermaid" class="hidden">
                 <div class="button-group">
                     <button class="primary" id="renderMermaidBtn">
                         🔄 Render Diagram
@@ -213,7 +249,9 @@
                         🧹 Format Code
                     </button>
                     <select id="mermaidTemplateSelect" class="select-dropdown">
-                        <option value="" disabled selected>Insert Template...</option>
+                        <option value="" disabled selected>
+                            Insert Template...
+                        </option>
                         <option value="flowchart">Flowchart</option>
                         <option value="sequence">Sequence Diagram</option>
                         <option value="class">Class Diagram</option>
@@ -312,7 +350,10 @@ graph TD
                                 </button>
                             </div>
                         </div>
-                        <div id="mermaidSyntaxWarning" class="syntax-warning hidden"></div>
+                        <div
+                            id="mermaidSyntaxWarning"
+                            class="syntax-warning hidden"
+                        ></div>
                         <div class="mermaid-preview" id="mermaidPreview">
                             <div class="mermaid-placeholder">
                                 Enter Mermaid code and click "Render Diagram" to
@@ -323,7 +364,11 @@ graph TD
                 </div>
             </div>
 
-            <div id="imageResizerSection" class="hidden">
+            <div
+                id="imageResizerSection"
+                data-section="imageResizer"
+                class="hidden"
+            >
                 <div class="button-group">
                     <button class="primary" id="selectImageBtn">
                         📁 Select Image
@@ -468,7 +513,7 @@ graph TD
                 />
             </div>
 
-            <div id="opensslSection" class="hidden">
+            <div id="opensslSection" data-section="openssl" class="hidden">
                 <div class="button-group">
                     <button class="primary" id="opensslDetailBtn">
                         Show Cert Detail
@@ -500,7 +545,10 @@ graph TD
                     <div class="editor-section">
                         <div class="editor-header">
                             <span class="editor-label">Certificate String</span>
-                            <button class="copy-button" id="copyOpensslInputBtn">
+                            <button
+                                class="copy-button"
+                                id="copyOpensslInputBtn"
+                            >
                                 📋 Copy
                             </button>
                         </div>
@@ -517,7 +565,10 @@ graph TD
                     <div class="editor-section">
                         <div class="editor-header">
                             <span class="editor-label">Certificate Detail</span>
-                            <button class="copy-button" id="copyOpensslOutputBtn">
+                            <button
+                                class="copy-button"
+                                id="copyOpensslOutputBtn"
+                            >
                                 📋 Copy
                             </button>
                         </div>
@@ -535,12 +586,18 @@ graph TD
                 </div>
             </div>
 
-            <div id="tracerouteSection" class="hidden">
+            <div
+                id="tracerouteSection"
+                data-section="traceroute"
+                class="hidden"
+            >
                 <div class="button-group">
                     <button class="primary" id="runTracerouteBtn">
                         Run Traceroute
                     </button>
-                    <button class="danger" id="clearTracerouteBtn">Clear</button>
+                    <button class="danger" id="clearTracerouteBtn">
+                        Clear
+                    </button>
                 </div>
 
                 <div class="openssl-url-row">
@@ -557,7 +614,10 @@ graph TD
                     <div class="editor-section">
                         <div class="editor-header">
                             <span class="editor-label">Traceroute Result</span>
-                            <button class="copy-button" id="copyTracerouteOutputBtn">
+                            <button
+                                class="copy-button"
+                                id="copyTracerouteOutputBtn"
+                            >
                                 📋 Copy
                             </button>
                         </div>
@@ -580,22 +640,32 @@ graph TD
                                 <div class="traceroute-loading-label">
                                     Tracing route...
                                 </div>
-                                <div class="traceroute-loading-line short"></div>
+                                <div
+                                    class="traceroute-loading-line short"
+                                ></div>
                                 <div class="traceroute-loading-line full"></div>
-                                <div class="traceroute-loading-line medium"></div>
+                                <div
+                                    class="traceroute-loading-line medium"
+                                ></div>
                                 <div class="traceroute-loading-line full"></div>
                                 <div class="traceroute-loading-line long"></div>
-                                <div class="traceroute-loading-line medium"></div>
+                                <div
+                                    class="traceroute-loading-line medium"
+                                ></div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div id="jsonHtmlSection" class="hidden">
+            <div id="jsonHtmlSection" data-section="jsonHtml" class="hidden">
                 <div class="button-group">
-                    <button class="primary" id="renderHtmlBtn">Render HTML</button>
-                    <button class="secondary" id="formatJsonHtmlBtn">Format JSON</button>
+                    <button class="primary" id="renderHtmlBtn">
+                        Render HTML
+                    </button>
+                    <button class="secondary" id="formatJsonHtmlBtn">
+                        Format JSON
+                    </button>
                     <button class="secondary" id="copyHtmlResultBtn">
                         📋 Copy Result
                     </button>
@@ -607,7 +677,10 @@ graph TD
                         <div class="editor-section">
                             <div class="editor-header">
                                 <span class="editor-label">JSON Data</span>
-                                <button class="copy-button" id="copyJsonHtmlBtn">
+                                <button
+                                    class="copy-button"
+                                    id="copyJsonHtmlBtn"
+                                >
                                     📋 Copy
                                 </button>
                             </div>
@@ -625,14 +698,20 @@ graph TD
                     <div class="json-html-middle">
                         <div class="editor-section">
                             <div class="editor-header">
-                                <span class="editor-label">HTML Template (use {{key}} for JSON values)</span>
-                                <button class="copy-button" id="copyTemplateBtn">
+                                <span class="editor-label"
+                                    >HTML Template (use {{key}} for JSON
+                                    values)</span
+                                >
+                                <button
+                                    class="copy-button"
+                                    id="copyTemplateBtn"
+                                >
                                     📋 Copy
                                 </button>
                             </div>
                             <textarea
                                 id="htmlTemplate"
-                                placeholder='Enter HTML template here... e.g. <h1>{{name}}</h1><p>Age: {{age}}</p>'
+                                placeholder="Enter HTML template here... e.g. <h1>{{name}}</h1><p>Age: {{age}}</p>"
                                 spellcheck="false"
                                 autocorrect="off"
                                 autocapitalize="off"
@@ -643,7 +722,10 @@ graph TD
                         <div class="editor-section">
                             <div class="editor-header">
                                 <span class="editor-label">Result Preview</span>
-                                <button class="copy-button" id="copyResultHtmlBtn">
+                                <button
+                                    class="copy-button"
+                                    id="copyResultHtmlBtn"
+                                >
                                     📋 Copy
                                 </button>
                             </div>
@@ -657,12 +739,20 @@ graph TD
                 </div>
             </div>
 
-            <div id="urlSection" class="hidden">
+            <div id="urlSection" data-section="url" class="hidden">
                 <div class="button-group">
-                    <button class="primary" id="urlBeautifyBtn">Beautify URL</button>
-                    <button class="secondary" id="urlEncodeBtn">Encode Entire URL</button>
-                    <button class="secondary" id="urlDecodeBtn">Decode Entire URL</button>
-                    <button class="secondary" id="urlReconstructBtn">Reconstruct URL</button>
+                    <button class="primary" id="urlBeautifyBtn">
+                        Beautify URL
+                    </button>
+                    <button class="secondary" id="urlEncodeBtn">
+                        Encode Entire URL
+                    </button>
+                    <button class="secondary" id="urlDecodeBtn">
+                        Decode Entire URL
+                    </button>
+                    <button class="secondary" id="urlReconstructBtn">
+                        Reconstruct URL
+                    </button>
                     <button class="danger" id="urlClearBtn">Clear All</button>
                 </div>
 
@@ -672,7 +762,12 @@ graph TD
                         <div class="editor-section">
                             <div class="editor-header">
                                 <span class="editor-label">Raw URL Input</span>
-                                <button class="copy-button" id="copyUrlInputBtn">📋 Copy</button>
+                                <button
+                                    class="copy-button"
+                                    id="copyUrlInputBtn"
+                                >
+                                    📋 Copy
+                                </button>
                             </div>
                             <textarea
                                 id="urlInput"
@@ -689,23 +784,65 @@ graph TD
                             <div class="url-details-grid">
                                 <div class="url-detail-row">
                                     <span class="detail-name">Protocol</span>
-                                    <input type="text" id="urlProtocol" placeholder="e.g. https:" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off" />
+                                    <input
+                                        type="text"
+                                        id="urlProtocol"
+                                        placeholder="e.g. https:"
+                                        spellcheck="false"
+                                        autocorrect="off"
+                                        autocapitalize="off"
+                                        autocomplete="off"
+                                    />
                                 </div>
                                 <div class="url-detail-row">
                                     <span class="detail-name">Hostname</span>
-                                    <input type="text" id="urlHostname" placeholder="e.g. example.com" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off" />
+                                    <input
+                                        type="text"
+                                        id="urlHostname"
+                                        placeholder="e.g. example.com"
+                                        spellcheck="false"
+                                        autocorrect="off"
+                                        autocapitalize="off"
+                                        autocomplete="off"
+                                    />
                                 </div>
                                 <div class="url-detail-row">
                                     <span class="detail-name">Port</span>
-                                    <input type="text" id="urlPort" placeholder="e.g. 8080" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off" />
+                                    <input
+                                        type="text"
+                                        id="urlPort"
+                                        placeholder="e.g. 8080"
+                                        spellcheck="false"
+                                        autocorrect="off"
+                                        autocapitalize="off"
+                                        autocomplete="off"
+                                    />
                                 </div>
                                 <div class="url-detail-row">
                                     <span class="detail-name">Pathname</span>
-                                    <input type="text" id="urlPathname" placeholder="e.g. /path/to/page" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off" />
+                                    <input
+                                        type="text"
+                                        id="urlPathname"
+                                        placeholder="e.g. /path/to/page"
+                                        spellcheck="false"
+                                        autocorrect="off"
+                                        autocapitalize="off"
+                                        autocomplete="off"
+                                    />
                                 </div>
                                 <div class="url-detail-row">
-                                    <span class="detail-name">Hash / Fragment</span>
-                                    <input type="text" id="urlHash" placeholder="e.g. #section1" spellcheck="false" autocorrect="off" autocapitalize="off" autocomplete="off" />
+                                    <span class="detail-name"
+                                        >Hash / Fragment</span
+                                    >
+                                    <input
+                                        type="text"
+                                        id="urlHash"
+                                        placeholder="e.g. #section1"
+                                        spellcheck="false"
+                                        autocorrect="off"
+                                        autocapitalize="off"
+                                        autocomplete="off"
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -716,22 +853,46 @@ graph TD
                         <div class="url-params-card">
                             <div class="params-header">
                                 <h3>Query Parameters</h3>
-                                <button class="primary-sm" id="urlAddParamBtn">+ Add Parameter</button>
+                                <button class="primary-sm" id="urlAddParamBtn">
+                                    + Add Parameter
+                                </button>
                             </div>
                             <div class="url-params-list" id="urlParamsList">
-                                <div class="params-placeholder">No query parameters found</div>
+                                <div class="params-placeholder">
+                                    No query parameters found
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <div id="jsonEditorSection" class="hidden">
+            <div
+                id="jsonEditorSection"
+                data-section="jsonEditor"
+                class="hidden"
+            >
                 <div class="button-group json-editor-toolbar">
-                    <button class="primary" id="jsonEditorFormatBtn">✨ Format</button>
-                    <button class="primary" id="jsonEditorMinifyBtn">⚡ Minify</button>
-                    <button class="primary" id="jsonEditorAutoFixBtn" title="Auto-repair single quotes, trailing commas, and unquoted keys">🪄 Auto-Fix JSON</button>
-                    <button class="secondary" id="jsonEditorUnpackAllBtn" title="Detect and unpack all stringified JSONs recursively into actual nested objects/arrays">🔄 Unpack All Strings</button>
+                    <button class="primary" id="jsonEditorFormatBtn">
+                        ✨ Format
+                    </button>
+                    <button class="primary" id="jsonEditorMinifyBtn">
+                        ⚡ Minify
+                    </button>
+                    <button
+                        class="primary"
+                        id="jsonEditorAutoFixBtn"
+                        title="Auto-repair single quotes, trailing commas, and unquoted keys"
+                    >
+                        🪄 Auto-Fix JSON
+                    </button>
+                    <button
+                        class="secondary"
+                        id="jsonEditorUnpackAllBtn"
+                        title="Detect and unpack all stringified JSONs recursively into actual nested objects/arrays"
+                    >
+                        🔄 Unpack All Strings
+                    </button>
                     <select id="jsonEditorCaseSelect" class="toolbar-select">
                         <option value="">🔤 Key Casing...</option>
                         <option value="camel">to camelCase</option>
@@ -739,18 +900,40 @@ graph TD
                         <option value="kebab">to kebab-case</option>
                         <option value="pascal">to PascalCase</option>
                     </select>
-                    <button class="secondary" id="jsonEditorMaskPiiBtn" title="Mask sensitive data like emails, passwords, phone numbers">🛡️ Mask PII</button>
+                    <button
+                        class="secondary"
+                        id="jsonEditorMaskPiiBtn"
+                        title="Mask sensitive data like emails, passwords, phone numbers"
+                    >
+                        🛡️ Mask PII
+                    </button>
                     <select id="jsonEditorSampleSelect" class="toolbar-select">
                         <option value="">📂 Load Sample...</option>
-                        <option value="stringified_api">API with Stringified JSON</option>
-                        <option value="ecommerce">E-Commerce Products List</option>
-                        <option value="user_profile">User Profile with Nested Data</option>
+                        <option value="stringified_api">
+                            API with Stringified JSON
+                        </option>
+                        <option value="ecommerce">
+                            E-Commerce Products List
+                        </option>
+                        <option value="user_profile">
+                            User Profile with Nested Data
+                        </option>
                     </select>
-                    <button class="secondary" id="jsonEditorExpandAllBtn">🔽 Expand All</button>
-                    <button class="secondary" id="jsonEditorCollapseAllBtn">🔼 Collapse All</button>
-                    <button class="secondary" id="jsonEditorCopyBtn">📋 Copy JSON</button>
-                    <button class="secondary" id="jsonEditorDownloadBtn">💾 Download</button>
-                    <button class="danger" id="jsonEditorClearBtn">Clear</button>
+                    <button class="secondary" id="jsonEditorExpandAllBtn">
+                        🔽 Expand All
+                    </button>
+                    <button class="secondary" id="jsonEditorCollapseAllBtn">
+                        🔼 Collapse All
+                    </button>
+                    <button class="secondary" id="jsonEditorCopyBtn">
+                        📋 Copy JSON
+                    </button>
+                    <button class="secondary" id="jsonEditorDownloadBtn">
+                        💾 Download
+                    </button>
+                    <button class="danger" id="jsonEditorClearBtn">
+                        Clear
+                    </button>
                 </div>
 
                 <div class="json-editor-container">
@@ -760,8 +943,17 @@ graph TD
                             <div class="editor-header">
                                 <span class="editor-label">Raw JSON Code</span>
                                 <div class="editor-header-actions">
-                                    <span id="jsonEditorStats" class="editor-stats-badge">Valid JSON</span>
-                                    <button class="copy-button" id="copyJsonEditorRawBtn">📋 Copy</button>
+                                    <span
+                                        id="jsonEditorStats"
+                                        class="editor-stats-badge"
+                                        >Valid JSON</span
+                                    >
+                                    <button
+                                        class="copy-button"
+                                        id="copyJsonEditorRawBtn"
+                                    >
+                                        📋 Copy
+                                    </button>
                                 </div>
                             </div>
                             <textarea
@@ -772,7 +964,10 @@ graph TD
                                 autocapitalize="off"
                                 autocomplete="off"
                             ></textarea>
-                            <div id="jsonEditorErrorBanner" class="json-editor-error-banner hidden"></div>
+                            <div
+                                id="jsonEditorErrorBanner"
+                                class="json-editor-error-banner hidden"
+                            ></div>
                         </div>
                     </div>
 
@@ -782,13 +977,25 @@ graph TD
                             <div class="tree-editor-header">
                                 <div class="tree-header-left">
                                     <h3>Visual Tree & Structure Editor</h3>
-                                    <span class="tree-subtitle">Edit keys/values, change types, and smart auto-add list items</span>
+                                    <span class="tree-subtitle"
+                                        >Edit keys/values, change types, and
+                                        smart auto-add list items</span
+                                    >
                                 </div>
                                 <div class="tree-search-wrapper">
-                                    <input type="text" id="jsonEditorSearchInput" class="tree-search-input" placeholder="🔍 Search keys or values..." spellcheck="false" />
+                                    <input
+                                        type="text"
+                                        id="jsonEditorSearchInput"
+                                        class="tree-search-input"
+                                        placeholder="🔍 Search keys or values..."
+                                        spellcheck="false"
+                                    />
                                 </div>
                             </div>
-                            <div id="jsonEditorTreeContainer" class="json-tree-container">
+                            <div
+                                id="jsonEditorTreeContainer"
+                                class="json-tree-container"
+                            >
                                 <!-- Dynamically generated tree view -->
                             </div>
                         </div>

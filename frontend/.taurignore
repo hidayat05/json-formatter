@@ -1,0 +1,4 @@
+# Test-only frontend files stay out of production bundles.
+test/**
+**/*.test.js
+plan.md

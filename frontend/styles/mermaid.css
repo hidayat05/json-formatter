@@ -1,0 +1,224 @@
+/* Mermaid Editor Styles */
+.mermaid-container {
+    display: flex;
+    flex-direction: row;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+    gap: 0;
+}
+
+.mermaid-editor-section {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+    min-width: 300px;
+    flex: 1;
+}
+
+.mermaid-splitter {
+    width: 8px;
+    cursor: col-resize;
+    background: transparent;
+    transition:
+        background-color 0.2s,
+        border-color 0.2s;
+    flex-shrink: 0;
+    user-select: none;
+    position: relative;
+    z-index: 10;
+}
+
+.mermaid-splitter::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 3px;
+    width: 2px;
+    background: #cbd5e1;
+    border-radius: 1px;
+    transition:
+        background-color 0.2s,
+        width 0.2s,
+        left 0.2s;
+}
+
+.mermaid-splitter:hover::after,
+.mermaid-splitter.dragging::after {
+    background: #5a6a7d;
+    width: 4px;
+    left: 2px;
+}
+
+.mermaid-splitter:hover,
+.mermaid-splitter.dragging {
+    background: rgba(90, 106, 125, 0.1);
+}
+
+.mermaid-preview-section {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+    min-width: 300px;
+    flex: 1;
+}
+
+.mermaid-preview-section.fullscreen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 9999;
+    background: #e0e5ec;
+    padding: 24px;
+    box-sizing: border-box;
+}
+
+.mermaid-preview-section.fullscreen .mermaid-preview {
+    background: #ffffff;
+    box-shadow:
+        12px 12px 24px rgba(163, 177, 198, 0.6),
+        -12px -12px 24px rgba(255, 255, 255, 0.7);
+    border-radius: 16px;
+    margin-top: 15px;
+    padding: 24px;
+}
+
+.mermaid-preview {
+    flex: 1;
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    background: #ffffff;
+    box-shadow:
+        inset 4px 4px 8px rgba(163, 177, 198, 0.6),
+        inset -4px -4px 8px rgba(255, 255, 255, 0.5);
+    overflow: auto;
+    display: block;
+    min-height: 0;
+    height: 100%;
+}
+
+.mermaid-preview svg {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+}
+
+.mermaid-preview .mermaid-error {
+    color: #c62828;
+    font-size: 14px;
+    text-align: center;
+    padding: 20px;
+}
+
+.mermaid-preview .mermaid-placeholder {
+    color: #8a96a8;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    width: 100%;
+}
+
+.header-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.zoom-separator {
+    color: #b0b8c4;
+    font-size: 14px;
+    user-select: none;
+}
+
+.zoom-button.active {
+    background: linear-gradient(145deg, #6fa3f5, #5d8dd1);
+    color: #fff;
+    box-shadow:
+        inset 2px 2px 4px rgba(93, 141, 209, 0.4),
+        inset -2px -2px 4px rgba(111, 163, 245, 0.4);
+}
+
+/* Drag/Pan Mode */
+.mermaid-preview.drag-mode {
+    cursor: grab;
+}
+
+.mermaid-preview.drag-mode:active {
+    cursor: grabbing;
+}
+
+.mermaid-preview.dragging {
+    cursor: grabbing;
+    user-select: none;
+}
+
+.mermaid-preview-content {
+    transform-origin: top left;
+    transition: transform 0.2s ease;
+    display: inline-block;
+    min-width: 100%;
+    position: relative;
+}
+
+.mermaid-preview-content.dragging {
+    transition: none;
+}
+
+/* Zoom Controls */
+.zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.zoom-button {
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    background: #e0e5ec;
+    box-shadow:
+        3px 3px 6px rgba(163, 177, 198, 0.6),
+        -3px -3px 6px rgba(255, 255, 255, 0.5);
+    color: #5a6a7d;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+}
+
+.zoom-button:hover {
+    box-shadow:
+        2px 2px 4px rgba(163, 177, 198, 0.6),
+        -2px -2px 4px rgba(255, 255, 255, 0.5);
+}
+
+.zoom-button:active {
+    box-shadow:
+        inset 2px 2px 4px rgba(163, 177, 198, 0.6),
+        inset -2px -2px 4px rgba(255, 255, 255, 0.5);
+}
+
+.zoom-level {
+    font-size: 12px;
+    font-weight: 600;
+    color: #5a6a7d;
+    min-width: 45px;
+    text-align: center;
+}
