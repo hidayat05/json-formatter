@@ -1506,6 +1506,10 @@
     tab-size: 2;
 }
 
+.proto-source-textarea:focus {
+    box-shadow: none;
+}
+
 .proto-source-footer {
     display: flex;
     justify-content: space-between;

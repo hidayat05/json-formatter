@@ -1,5 +1,5 @@
 import { showStatus } from "./status.js";
-const invoke = window.__TAURI_INTERNALS__.invoke;
+const invoke = window.__TAURI_INTERNALS__?.invoke;
 
 function escapeHtml(str) {
   if (!str) return "";
@@ -161,7 +161,7 @@ const trafficDetailContent = document.getElementById("trafficDetailContent");
 const detailDrawerSubtitle = document.getElementById("detailDrawerSubtitle");
 const closeDetailDrawerBtn = document.getElementById("closeDetailDrawerBtn");
 
-async function initMockServer() {
+export async function initMockServer() {
   if (mockServerInitialized) return;
   mockServerInitialized = true;
   setupMockEventListeners();
