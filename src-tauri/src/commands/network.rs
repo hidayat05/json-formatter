@@ -179,11 +179,7 @@ pub fn openssl_cert_detail_from_url(
         host,
         port,
         certs.len(),
-        if show_full_chain {
-            "full"
-        } else {
-            "leaf"
-        }
+        if show_full_chain { "full" } else { "leaf" }
     );
 
     if show_full_chain && !has_self_signed_root {
@@ -195,7 +191,11 @@ pub fn openssl_cert_detail_from_url(
     output.push('\n');
     output.push_str(&sections.join("\n\n"));
 
-    let pem_chain = selected.iter().map(|s| s.as_str()).collect::<Vec<_>>().join("\n");
+    let pem_chain = selected
+        .iter()
+        .map(|s| s.as_str())
+        .collect::<Vec<_>>()
+        .join("\n");
 
     Ok(SslUrlCheckResult {
         pem: pem_chain,
@@ -313,10 +313,7 @@ pub fn parse_host_and_port(url_input: &str) -> Result<(String, u16), String> {
         .map(|(_, rest)| rest)
         .unwrap_or(normalized.as_str());
 
-    let authority_with_path = without_scheme
-        .split('#')
-        .next()
-        .unwrap_or(without_scheme);
+    let authority_with_path = without_scheme.split('#').next().unwrap_or(without_scheme);
     let authority = authority_with_path
         .split('/')
         .next()
@@ -327,11 +324,7 @@ pub fn parse_host_and_port(url_input: &str) -> Result<(String, u16), String> {
         return Err("Invalid URL: host is empty".to_string());
     }
 
-    let authority_no_auth = authority
-        .rsplit('@')
-        .next()
-        .unwrap_or(authority)
-        .trim();
+    let authority_no_auth = authority.rsplit('@').next().unwrap_or(authority).trim();
 
     if authority_no_auth.is_empty() {
         return Err("Invalid URL: host is empty".to_string());
@@ -682,12 +675,7 @@ pub fn reverse_dns_lookup(ip: &IpAddr) -> Option<String> {
 
         if let Some((_, value)) = lower.split_once("name =") {
             let original_value = &line[line.len() - value.len()..];
-            return Some(
-                original_value
-                    .trim()
-                    .trim_end_matches('.')
-                    .to_string(),
-            );
+            return Some(original_value.trim().trim_end_matches('.').to_string());
         }
 
         if lower.trim_start().starts_with("name:") {
@@ -783,7 +771,11 @@ pub fn create_temp_cert_path() -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    std::env::temp_dir().join(format!("json-formatter-cert-{}-{}.pem", std::process::id(), nanos))
+    std::env::temp_dir().join(format!(
+        "json-formatter-cert-{}-{}.pem",
+        std::process::id(),
+        nanos
+    ))
 }
 
 pub fn generate_cert_report(cert_path: &Path) -> Result<String, String> {
@@ -792,21 +784,45 @@ pub fn generate_cert_report(cert_path: &Path) -> Result<String, String> {
         .ok_or("Invalid certificate temp path".to_string())?;
 
     let detail_output = run_openssl(
-        &["x509", "-text", "-noout", "-inform", "PEM", "-in", cert_path_str],
+        &[
+            "x509",
+            "-text",
+            "-noout",
+            "-inform",
+            "PEM",
+            "-in",
+            cert_path_str,
+        ],
         None,
     )?;
     let detail = String::from_utf8(detail_output)
         .map_err(|e| format!("OpenSSL output is not valid UTF-8: {}", e))?;
 
     let cert_der = run_openssl(
-        &["x509", "-outform", "DER", "-inform", "PEM", "-in", cert_path_str],
+        &[
+            "x509",
+            "-outform",
+            "DER",
+            "-inform",
+            "PEM",
+            "-in",
+            cert_path_str,
+        ],
         None,
     )?;
     let cert_digest = run_openssl(&["dgst", "-sha256", "-binary"], Some(&cert_der))?;
     let fingerprint = format_sha256_fingerprint(&cert_digest);
 
     let pubkey_pem = run_openssl(
-        &["x509", "-pubkey", "-noout", "-inform", "PEM", "-in", cert_path_str],
+        &[
+            "x509",
+            "-pubkey",
+            "-noout",
+            "-inform",
+            "PEM",
+            "-in",
+            cert_path_str,
+        ],
         None,
     )?;
     let pubkey_der = run_openssl(&["pkey", "-pubin", "-outform", "DER"], Some(&pubkey_pem))?;
@@ -852,8 +868,10 @@ pub fn run_openssl(args: &[&str], input: Option<&[u8]>) -> Result<Vec<u8>, Strin
     } else {
         let err = String::from_utf8_lossy(&output.stderr).trim().to_string();
         if err.is_empty() {
-            Err("Failed to parse certificate. Ensure input is valid PEM/DER certificate string."
-                .to_string())
+            Err(
+                "Failed to parse certificate. Ensure input is valid PEM/DER certificate string."
+                    .to_string(),
+            )
         } else {
             Err(format!("OpenSSL error: {}", err))
         }

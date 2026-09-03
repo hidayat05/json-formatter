@@ -139,8 +139,11 @@ pub fn remove_background(image_data: String, tolerance: u32) -> Result<String, S
             if mask[y as usize][x as usize] {
                 let mut min_dist = feather_radius as f64 + 1.0;
 
-                for fy in (y.saturating_sub(feather_radius))..=(y + feather_radius).min(height - 1) {
-                    for fx in (x.saturating_sub(feather_radius))..=(x + feather_radius).min(width - 1) {
+                for fy in (y.saturating_sub(feather_radius))..=(y + feather_radius).min(height - 1)
+                {
+                    for fx in
+                        (x.saturating_sub(feather_radius))..=(x + feather_radius).min(width - 1)
+                    {
                         if !mask[fy as usize][fx as usize] {
                             let dist = (((x as i32 - fx as i32).pow(2)
                                 + (y as i32 - fy as i32).pow(2))

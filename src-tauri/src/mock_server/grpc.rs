@@ -1,10 +1,10 @@
 use crate::db::{DbManager, MockConfig, TrafficLogEntry};
 use http_body_util::combinators::BoxBody;
-use http_body_util::{BodyExt, Empty, Full};
-use hyper::body::{Bytes, Incoming};
+use http_body_util::{BodyExt, Empty};
+use hyper::body::{Body, Bytes, Frame, Incoming, SizeHint};
 use hyper::server::conn::http2;
 use hyper::service::service_fn;
-use hyper::{Request, Response, StatusCode};
+use hyper::{HeaderMap, Request, Response, StatusCode};
 use hyper_util::rt::TokioIo;
 use log::{error, info, warn};
 use prost_reflect::prost::Message;
@@ -13,7 +13,9 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::convert::Infallible;
 use std::net::SocketAddr;
+use std::pin::Pin;
 use std::sync::Arc;
+use std::task::{Context, Poll};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
 use tokio::net::TcpListener;
@@ -210,7 +212,10 @@ extend google.protobuf.FieldOptions {
   repeated FieldBehavior field_behavior = 1052;
 }
 "#;
-    let _ = std::fs::write(google_api_dir.join("field_behavior.proto"), field_behavior_proto);
+    let _ = std::fs::write(
+        google_api_dir.join("field_behavior.proto"),
+        field_behavior_proto,
+    );
 
     let resource_proto = r#"syntax = "proto3";
 package google.api;
@@ -346,7 +351,10 @@ message LocalizedMessage {
   string message = 2;
 }
 "#;
-    let _ = std::fs::write(google_rpc_dir.join("error_details.proto"), rpc_error_details_proto);
+    let _ = std::fs::write(
+        google_rpc_dir.join("error_details.proto"),
+        rpc_error_details_proto,
+    );
 
     let validate_dir = temp_dir.join("validate");
     let _ = std::fs::create_dir_all(&validate_dir);
@@ -608,13 +616,13 @@ pub fn start_server(
     std_listener
         .set_nonblocking(true)
         .map_err(|e| format!("Failed to set non-blocking: {}", e))?;
-    let bound_port = std_listener
-        .local_addr()
-        .map_err(|e| e.to_string())?
-        .port();
+    let bound_port = std_listener.local_addr().map_err(|e| e.to_string())?.port();
 
     tauri::async_runtime::spawn(async move {
-        info!("Starting gRPC Mock Server on http://127.0.0.1:{}", bound_port);
+        info!(
+            "Starting gRPC Mock Server on http://127.0.0.1:{}",
+            bound_port
+        );
 
         let listener = match TcpListener::from_std(std_listener) {
             Ok(l) => l,
@@ -667,10 +675,47 @@ pub fn start_server(
     })
 }
 
-fn full_body(bytes: Vec<u8>) -> BoxBody<Bytes, hyper::Error> {
-    Full::new(Bytes::from(bytes))
-        .map_err(|never: Infallible| match never {})
-        .boxed()
+pub struct GrpcBody {
+    data: Option<Bytes>,
+    trailers: Option<HeaderMap>,
+}
+
+impl Body for GrpcBody {
+    type Data = Bytes;
+    type Error = hyper::Error;
+
+    fn poll_frame(
+        mut self: Pin<&mut Self>,
+        _cx: &mut Context<'_>,
+    ) -> Poll<Option<Result<Frame<Self::Data>, Self::Error>>> {
+        if let Some(data) = self.data.take() {
+            return Poll::Ready(Some(Ok(Frame::data(data))));
+        }
+        if let Some(trailers) = self.trailers.take() {
+            return Poll::Ready(Some(Ok(Frame::trailers(trailers))));
+        }
+        Poll::Ready(None)
+    }
+
+    fn is_end_stream(&self) -> bool {
+        self.data.is_none() && self.trailers.is_none()
+    }
+
+    fn size_hint(&self) -> SizeHint {
+        if let Some(data) = &self.data {
+            SizeHint::with_exact(data.len() as u64)
+        } else {
+            SizeHint::with_exact(0)
+        }
+    }
+}
+
+fn grpc_body(bytes: Vec<u8>, trailers: HeaderMap) -> BoxBody<Bytes, hyper::Error> {
+    GrpcBody {
+        data: Some(Bytes::from(bytes)),
+        trailers: Some(trailers),
+    }
+    .boxed()
 }
 
 fn empty_body() -> BoxBody<Bytes, hyper::Error> {
@@ -699,6 +744,17 @@ async fn handle_grpc_request(
         ("", "")
     };
 
+    let req_method = req.method().clone();
+    let req_headers = req.headers().clone();
+    let mut req_headers_map = serde_json::Map::new();
+    for (k, v) in req_headers.iter() {
+        req_headers_map.insert(
+            k.as_str().to_string(),
+            serde_json::json!(v.to_str().unwrap_or("")),
+        );
+    }
+    let req_headers_json = serde_json::to_string(&req_headers_map).unwrap_or_default();
+
     let body_bytes = req.into_body().collect().await?.to_bytes();
 
     let pool_guard = ctx.descriptor_pool.read().await;
@@ -712,7 +768,10 @@ async fn handle_grpc_request(
                     let msg_payload = &body_bytes[5..];
                     if let Ok(dyn_msg) = DynamicMessage::decode(input_desc, msg_payload) {
                         if let Ok(json_val) = serde_json::to_value(&dyn_msg) {
-                            req_json_str = Some(json_val.to_string());
+                            req_json_str = Some(
+                                serde_json::to_string_pretty(&json_val)
+                                    .unwrap_or_else(|_| json_val.to_string()),
+                            );
                         }
                     }
                 }
@@ -721,16 +780,13 @@ async fn handle_grpc_request(
     }
 
     let rules = ctx.db.get_grpc_rules().unwrap_or_default();
-    let config = ctx
-        .db
-        .get_config("GRPC")
-        .unwrap_or_else(|_| MockConfig {
-            server_type: "GRPC".to_string(),
-            port: 50051,
-            is_forwarder_enabled: false,
-            origin_url: None,
-            record_traffic: true,
-        });
+    let config = ctx.db.get_config("GRPC").unwrap_or_else(|_| MockConfig {
+        server_type: "GRPC".to_string(),
+        port: 50051,
+        is_forwarder_enabled: false,
+        origin_url: None,
+        record_traffic: true,
+    });
 
     let matched_rule = rules
         .into_iter()
@@ -752,8 +808,14 @@ async fn handle_grpc_request(
         };
 
         let mut resp_headers_map = serde_json::Map::new();
-        resp_headers_map.insert("content-type".to_string(), serde_json::json!("application/grpc"));
-        resp_headers_map.insert("grpc-status".to_string(), serde_json::json!(&status_code_str));
+        resp_headers_map.insert(
+            "content-type".to_string(),
+            serde_json::json!("application/grpc"),
+        );
+        resp_headers_map.insert(
+            "grpc-status".to_string(),
+            serde_json::json!(&status_code_str),
+        );
         resp_headers_map.insert("grpc-message".to_string(), serde_json::json!(&grpc_msg));
 
         // Parse custom response metadata / headers
@@ -787,13 +849,17 @@ async fn handle_grpc_request(
 
             if let Some(pool) = pool_guard.as_ref() {
                 if let Some(service_desc) = pool.get_service_by_name(service_name) {
-                    if let Some(method_desc) = service_desc.methods().find(|m| m.name() == method_name) {
+                    if let Some(method_desc) =
+                        service_desc.methods().find(|m| m.name() == method_name)
+                    {
                         let output_desc = method_desc.output();
                         if let Ok(json_val) = serde_json::from_str::<Value>(&rule.response_json) {
-                            if let Ok(dyn_msg) = DynamicMessage::deserialize(output_desc, json_val) {
+                            if let Ok(dyn_msg) = DynamicMessage::deserialize(output_desc, json_val)
+                            {
                                 let encoded = dyn_msg.encode_to_vec();
                                 resp_payload_bytes.push(0u8);
-                                resp_payload_bytes.extend_from_slice(&(encoded.len() as u32).to_be_bytes());
+                                resp_payload_bytes
+                                    .extend_from_slice(&(encoded.len() as u32).to_be_bytes());
                                 resp_payload_bytes.extend_from_slice(&encoded);
                             }
                         }
@@ -817,7 +883,9 @@ async fn handle_grpc_request(
                     duration_ms,
                     request_headers: Some(r#"{"content-type": "application/grpc"}"#.to_string()),
                     request_body: req_json_str,
-                    response_headers: Some(serde_json::to_string(&resp_headers_map).unwrap_or_default()),
+                    response_headers: Some(
+                        serde_json::to_string(&resp_headers_map).unwrap_or_default(),
+                    ),
                     response_body: Some(rule.response_json.clone()),
                 };
                 let _ = ctx.db.add_traffic_log(&log_entry);
@@ -828,18 +896,28 @@ async fn handle_grpc_request(
 
             let mut builder = Response::builder()
                 .status(StatusCode::OK)
-                .header("content-type", "application/grpc")
-                .header("grpc-status", "0")
-                .header("grpc-message", &grpc_msg);
+                .header("content-type", "application/grpc");
 
             for (k, v) in &custom_metadata_pairs {
                 builder = builder.header(k.as_str(), v.as_str());
             }
+
+            let mut trailers = HeaderMap::new();
+            trailers.insert("grpc-status", "0".parse().unwrap());
+            if let Ok(msg_val) = grpc_msg.parse() {
+                trailers.insert("grpc-message", msg_val);
+            }
             for (k, v) in &custom_trailers_pairs {
-                builder = builder.header(k.as_str(), v.as_str());
+                if let Ok(hname) = hyper::header::HeaderName::from_bytes(k.as_bytes()) {
+                    if let Ok(hval) = hyper::header::HeaderValue::from_str(v.as_str()) {
+                        trailers.insert(hname, hval);
+                    }
+                }
             }
 
-            let resp = builder.body(full_body(resp_payload_bytes)).unwrap();
+            let resp = builder
+                .body(grpc_body(resp_payload_bytes, trailers))
+                .unwrap();
             return Ok(resp);
         } else {
             if config.record_traffic {
@@ -854,7 +932,9 @@ async fn handle_grpc_request(
                     duration_ms,
                     request_headers: Some(r#"{"content-type": "application/grpc"}"#.to_string()),
                     request_body: req_json_str,
-                    response_headers: Some(serde_json::to_string(&resp_headers_map).unwrap_or_default()),
+                    response_headers: Some(
+                        serde_json::to_string(&resp_headers_map).unwrap_or_default(),
+                    ),
                     response_body: Some(rule.response_json.clone()),
                 };
                 let _ = ctx.db.add_traffic_log(&log_entry);
@@ -881,6 +961,134 @@ async fn handle_grpc_request(
         }
     }
 
+    if config.is_forwarder_enabled {
+        if let Some(origin) = &config.origin_url {
+            let origin_clean = origin.trim_end_matches('/');
+            if !origin_clean.is_empty() {
+                let target_url = format!("{}{}", origin_clean, path);
+                info!("Forwarding gRPC request to origin: {}", target_url);
+
+                match forward_grpc_to_origin(
+                    &req_method,
+                    &target_url,
+                    &req_headers,
+                    body_bytes.clone(),
+                )
+                .await
+                {
+                    Ok((origin_status, origin_headers, origin_resp_body)) => {
+                        let duration_ms = start_time.elapsed().as_millis() as u64;
+                        let mut origin_headers_map = serde_json::Map::new();
+                        for (k, v) in origin_headers.iter() {
+                            origin_headers_map.insert(
+                                k.as_str().to_string(),
+                                serde_json::json!(v.to_str().unwrap_or("")),
+                            );
+                        }
+
+                        let mut origin_resp_json_str =
+                            format!("<Binary gRPC payload, {} bytes>", origin_resp_body.len());
+                        if let Some(pool) = pool_guard.as_ref() {
+                            if let Some(service_desc) = pool.get_service_by_name(service_name) {
+                                if let Some(method_desc) =
+                                    service_desc.methods().find(|m| m.name() == method_name)
+                                {
+                                    let output_desc = method_desc.output();
+                                    if origin_resp_body.len() >= 5 {
+                                        let msg_payload = &origin_resp_body[5..];
+                                        if let Ok(dyn_msg) =
+                                            DynamicMessage::decode(output_desc, msg_payload)
+                                        {
+                                            if let Ok(json_val) = serde_json::to_value(&dyn_msg) {
+                                                origin_resp_json_str =
+                                                    serde_json::to_string_pretty(&json_val)
+                                                        .unwrap_or_else(|_| json_val.to_string());
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        if config.record_traffic {
+                            let log_entry = TrafficLogEntry {
+                                id: uuid::Uuid::new_v4().to_string(),
+                                timestamp: now_ts,
+                                server_type: "GRPC".to_string(),
+                                method_or_rpc: format!("{}/{}", service_name, method_name),
+                                path_or_service: path.clone(),
+                                status_code: origin_status.as_u16(),
+                                is_mocked: false,
+                                duration_ms,
+                                request_headers: Some(req_headers_json.clone()),
+                                request_body: req_json_str.clone(),
+                                response_headers: Some(
+                                    serde_json::to_string(&origin_headers_map).unwrap_or_default(),
+                                ),
+                                response_body: Some(origin_resp_json_str),
+                            };
+                            let _ = ctx.db.add_traffic_log(&log_entry);
+                            if let Some(app) = &ctx.app_handle {
+                                let _ = app.emit("mock_traffic_event", &log_entry);
+                            }
+                        }
+
+                        let mut builder = Response::builder().status(origin_status);
+                        let mut trailers = hyper::HeaderMap::new();
+
+                        for (k, v) in origin_headers.iter() {
+                            let k_str = k.as_str();
+                            if k_str.eq_ignore_ascii_case("grpc-status")
+                                || k_str.eq_ignore_ascii_case("grpc-message")
+                            {
+                                trailers.insert(k.clone(), v.clone());
+                            } else if !k_str.eq_ignore_ascii_case("transfer-encoding")
+                                && !k_str.eq_ignore_ascii_case("content-length")
+                            {
+                                builder = builder.header(k, v);
+                            }
+                        }
+
+                        let resp = builder.body(grpc_body(origin_resp_body, trailers)).unwrap();
+                        return Ok(resp);
+                    }
+                    Err(err_msg) => {
+                        warn!("gRPC Forwarder error to {}: {}", target_url, err_msg);
+                        let duration_ms = start_time.elapsed().as_millis() as u64;
+                        if config.record_traffic {
+                            let log_entry = TrafficLogEntry {
+                                id: uuid::Uuid::new_v4().to_string(),
+                                timestamp: now_ts,
+                                server_type: "GRPC".to_string(),
+                                method_or_rpc: format!("{}/{}", service_name, method_name),
+                                path_or_service: path.clone(),
+                                status_code: 502,
+                                is_mocked: false,
+                                duration_ms,
+                                request_headers: Some(req_headers_json.clone()),
+                                request_body: req_json_str.clone(),
+                                response_headers: Some(r#"{"grpc-status": "14"}"#.to_string()),
+                                response_body: Some(err_msg),
+                            };
+                            let _ = ctx.db.add_traffic_log(&log_entry);
+                            if let Some(app) = &ctx.app_handle {
+                                let _ = app.emit("mock_traffic_event", &log_entry);
+                            }
+                        }
+
+                        let resp = Response::builder()
+                            .status(StatusCode::OK)
+                            .header("content-type", "application/grpc")
+                            .header("grpc-status", "14")
+                            .header("grpc-message", "Proxy Forwarder Bad Gateway")
+                            .body(empty_body())
+                            .unwrap();
+                        return Ok(resp);
+                    }
+                }
+            }
+        }
+    }
     let duration_ms = start_time.elapsed().as_millis() as u64;
     if config.record_traffic {
         let log_entry = TrafficLogEntry {
@@ -907,9 +1115,82 @@ async fn handle_grpc_request(
         .status(StatusCode::OK)
         .header("content-type", "application/grpc")
         .header("grpc-status", "12")
-        .header("grpc-message", "Method not implemented in Palugada mock server")
+        .header(
+            "grpc-message",
+            "Method not implemented in Palugada mock server",
+        )
         .body(empty_body())
         .unwrap();
 
     Ok(resp)
+}
+
+async fn forward_grpc_to_origin(
+    method: &hyper::Method,
+    target_url: &str,
+    headers: &hyper::HeaderMap,
+    body_bytes: Bytes,
+) -> Result<(StatusCode, hyper::HeaderMap, Vec<u8>), String> {
+    let builder = reqwest::Client::builder()
+        .danger_accept_invalid_certs(true)
+        .timeout(tokio::time::Duration::from_secs(30));
+
+    let client = if target_url.starts_with("http://") {
+        builder.http2_prior_knowledge().build()
+    } else {
+        builder.build()
+    }
+    .map_err(|e| format!("Failed to create HTTP client: {}", e))?;
+
+    let reqwest_method = reqwest::Method::from_bytes(method.as_str().as_bytes())
+        .map_err(|e| format!("Invalid HTTP method: {}", e))?;
+
+    let mut req_builder = client.request(reqwest_method, target_url);
+
+    for (k, v) in headers.iter() {
+        let key_str = k.as_str();
+        if !key_str.eq_ignore_ascii_case("host") && !key_str.eq_ignore_ascii_case("content-length")
+        {
+            if let Ok(val_bytes) = reqwest::header::HeaderValue::from_bytes(v.as_bytes()) {
+                if let Ok(header_name) = reqwest::header::HeaderName::from_bytes(key_str.as_bytes())
+                {
+                    req_builder = req_builder.header(header_name, val_bytes);
+                }
+            }
+        }
+    }
+
+    if !body_bytes.is_empty() {
+        req_builder = req_builder.body(body_bytes);
+    }
+
+    let resp = req_builder
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {}", e))?;
+
+    let status = StatusCode::from_u16(resp.status().as_u16()).unwrap_or(StatusCode::OK);
+    let mut resp_headers = hyper::HeaderMap::new();
+
+    for (k, v) in resp.headers().iter() {
+        if let (Ok(name), Ok(val)) = (
+            hyper::header::HeaderName::from_bytes(k.as_str().as_bytes()),
+            hyper::header::HeaderValue::from_bytes(v.as_bytes()),
+        ) {
+            resp_headers.insert(name, val);
+        }
+    }
+
+    if !resp_headers.contains_key("grpc-status") && status.is_success() {
+        if let Ok(zero_val) = hyper::header::HeaderValue::from_str("0") {
+            resp_headers.insert("grpc-status", zero_val);
+        }
+    }
+
+    let bytes = resp
+        .bytes()
+        .await
+        .map_err(|e| format!("Failed to read response body: {}", e))?;
+
+    Ok((status, resp_headers, bytes.to_vec()))
 }

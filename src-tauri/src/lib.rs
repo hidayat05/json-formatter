@@ -1303,7 +1303,8 @@ mod tests {
   "isActive": true
 }"#
         .to_string();
-        let result = json_to_class_impl(input, "typescript".to_string(), "User".to_string()).unwrap();
+        let result =
+            json_to_class_impl(input, "typescript".to_string(), "User".to_string()).unwrap();
         assert!(result.contains("interface User"));
         assert!(result.contains("name: string;"));
         assert!(result.contains("age: number;"));
@@ -1357,7 +1358,8 @@ mod tests {
   }
 }"#
         .to_string();
-        let result = json_to_class_impl(input, "typescript".to_string(), "Root".to_string()).unwrap();
+        let result =
+            json_to_class_impl(input, "typescript".to_string(), "Root".to_string()).unwrap();
         assert!(result.contains("interface Root"));
         assert!(result.contains("interface User"));
         assert!(result.contains("name: string;"));

@@ -27,8 +27,12 @@ message PaymentResponse {
     assert_eq!(parsed.services[0].name, "PaymentService");
     assert_eq!(parsed.services[0].methods.len(), 1);
     assert_eq!(parsed.services[0].methods[0].name, "ProcessPayment");
-    assert!(parsed.services[0].methods[0].default_response_json.contains("transaction_id"));
-    assert!(parsed.services[0].methods[0].default_response_json.contains("success"));
+    assert!(parsed.services[0].methods[0]
+        .default_response_json
+        .contains("transaction_id"));
+    assert!(parsed.services[0].methods[0]
+        .default_response_json
+        .contains("success"));
 }
 
 #[test]
@@ -97,7 +101,8 @@ message OrderResponse {
 }
 "#;
 
-    let res = mock_server::grpc::parse_proto_content_with_includes(service_proto, &[common_proto]).unwrap();
+    let res = mock_server::grpc::parse_proto_content_with_includes(service_proto, &[common_proto])
+        .unwrap();
     assert_eq!(res.services.len(), 1);
     assert_eq!(res.services[0].name, "OrderService");
     assert_eq!(res.services[0].methods[0].name, "CreateOrder");

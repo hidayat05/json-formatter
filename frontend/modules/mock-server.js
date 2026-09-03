@@ -177,9 +177,13 @@ export async function initMockServer() {
       window.__TAURI_EVENT__.listen("mock_traffic_event", (event) => {
         handleIncomingTrafficEvent(event.payload);
       });
+    } else {
+      console.log("Tauri event listener not found, starting global polling");
+      startTrafficPolling();
     }
   } catch (e) {
     console.log("Tauri event listener fallback to polling");
+    startTrafficPolling();
   }
 }
 
@@ -527,13 +531,18 @@ function setMockSubTab(subTab) {
   mockGrpcPanel.classList.toggle("hidden", subTab !== "grpc");
   mockTrafficPanel.classList.toggle("hidden", subTab !== "traffic");
 
+  const headerActions = document.querySelector(".mock-header-actions-group");
+  if (headerActions) {
+    headerActions.classList.toggle("hidden", subTab === "traffic");
+  }
+
   updateServerControlBar();
 
   if (subTab === "traffic") {
+    mockForwarderDrawer.classList.add("hidden");
     loadTrafficLogs(false);
-    startTrafficPolling();
   } else {
-    stopTrafficPolling();
+    loadMockConfig();
   }
 }
 
@@ -555,10 +564,8 @@ function setRestEditorTab(tab) {
 function startTrafficPolling() {
   stopTrafficPolling();
   trafficAutoRefreshTimer = setInterval(() => {
-    if (activeMockSubTab === "traffic") {
-      loadTrafficLogs(false);
-    }
-  }, 3000);
+    loadTrafficLogs(false);
+  }, 2000);
 }
 
 function stopTrafficPolling() {
@@ -662,6 +669,7 @@ async function loadMockConfig() {
     mockForwarderEnabledCheck.checked = config.is_forwarder_enabled;
     mockOriginUrlInput.value = config.origin_url || "";
     mockRecordTrafficCheck.checked = config.record_traffic;
+    mockPortInput.value = config.port;
 
     if (forwarderActiveDot) {
       forwarderActiveDot.classList.toggle("active", config.is_forwarder_enabled);
@@ -1610,7 +1618,9 @@ async function loadTrafficLogs(showFeedback = true) {
   try {
     mockTrafficLogs = await invoke("get_traffic_logs", { limit: 200 });
     trafficBadgeCount.textContent = mockTrafficLogs.length;
-    renderTrafficLogsTable();
+    if (activeMockSubTab === "traffic") {
+      renderTrafficLogsTable();
+    }
     if (showFeedback) {
       showStatus("✓ Traffic logs refreshed");
     }

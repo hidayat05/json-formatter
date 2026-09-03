@@ -77,13 +77,16 @@ A fast, lightweight, and versatile desktop toolbox built with **Rust** and **Tau
   * Custom HTTP methods, status codes, latency simulation, and custom response headers/body.
   * **Origin Forwarder (Fallback Reverse Proxy)**: Forwards unhandled requests to real upstream servers (e.g. staging API) with full headers and body preservation.
   * **🪄 1-Click "Record to Mock"**: Converts any intercepted upstream response into a local mock rule instantly!
+  * **Independent Proxy Configurations**: Configure REST and gRPC proxy settings separately and cleanly; changes apply instantly without needing a server restart!
 * **⚡ Dynamic gRPC Mocking**:
   * **Pure-Rust Proto Compiler**: Parses `.proto` files dynamically in memory using `protox` without requiring external `protoc` binary.
   * Service & RPC Explorer: Inspects RPC methods, input types, and output types.
   * Dynamic Protobuf encoding/decoding and JSON schema mock generation.
+  * **HTTP/2 Protocol Compliance**: Fully standard-compliant gRPC mock server with HTTP/2 trailer support (e.g., `grpc-status`, `grpc-message`).
 * **📜 Live Traffic Inspector**:
   * Intercepts and logs all incoming traffic in real-time.
   * Complete Request/Response headers & payload inspector with filter by type/source.
+  * **Auto-Formatting**: Automatically pretty-prints JSON request and response payloads in the traffic logs for rapid debugging and readability.
 * **💾 Local SQLite Persistence**:
   * Uses bundled `rusqlite` to store all rules, configs, proto files, and traffic history permanently.
 

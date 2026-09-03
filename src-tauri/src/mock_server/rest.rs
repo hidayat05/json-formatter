@@ -9,7 +9,6 @@ use axum::{
 use log::{error, info, warn};
 use regex::Regex;
 use serde_json::Value;
-use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
@@ -51,13 +50,13 @@ pub fn start_server(
     std_listener
         .set_nonblocking(true)
         .map_err(|e| format!("Failed to set non-blocking: {}", e))?;
-    let bound_port = std_listener
-        .local_addr()
-        .map_err(|e| e.to_string())?
-        .port();
+    let bound_port = std_listener.local_addr().map_err(|e| e.to_string())?.port();
 
     tauri::async_runtime::spawn(async move {
-        info!("Starting REST Mock & Proxy Server on http://127.0.0.1:{}", bound_port);
+        info!(
+            "Starting REST Mock & Proxy Server on http://127.0.0.1:{}",
+            bound_port
+        );
 
         let listener = match tokio::net::TcpListener::from_std(std_listener) {
             Ok(l) => l,
@@ -101,21 +100,20 @@ async fn handle_all_requests(
     let query_str = uri.query().map(|q| format!("?{}", q)).unwrap_or_default();
     let full_path = format!("{}{}", path, query_str);
 
-    let req_body_str = String::from_utf8(req_body.to_vec()).ok();
+    let req_body_str = String::from_utf8(req_body.to_vec())
+        .ok()
+        .map(|s| format_json_str(&s));
     let req_headers_json = serialize_headers(&headers);
 
     // 1. Check if mock rules exist in DB
     let rules = state.db.get_rest_rules().unwrap_or_default();
-    let config = state
-        .db
-        .get_config("REST")
-        .unwrap_or_else(|_| MockConfig {
-            server_type: "REST".to_string(),
-            port: 8080,
-            is_forwarder_enabled: false,
-            origin_url: None,
-            record_traffic: true,
-        });
+    let config = state.db.get_config("REST").unwrap_or_else(|_| MockConfig {
+        server_type: "REST".to_string(),
+        port: 8080,
+        is_forwarder_enabled: false,
+        origin_url: None,
+        record_traffic: true,
+    });
 
     // 2. Find matching rule
     let matched_rule = rules
@@ -154,7 +152,7 @@ async fn handle_all_requests(
             resp_builder = resp_builder.header("Content-Type", "application/json; charset=utf-8");
         }
 
-        let resp_body = rule.response_body.clone();
+        let resp_body = format_json_str(&rule.response_body);
         let duration_ms = start_time.elapsed().as_millis() as u64;
 
         // Log traffic
@@ -182,7 +180,9 @@ async fn handle_all_requests(
 
         return resp_builder
             .body(Body::from(resp_body))
-            .unwrap_or_else(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Error building response").into_response());
+            .unwrap_or_else(|_| {
+                (StatusCode::INTERNAL_SERVER_ERROR, "Error building response").into_response()
+            });
     }
 
     // --- NO MATCH FOUND ---
@@ -194,19 +194,13 @@ async fn handle_all_requests(
                 let target_url = format!("{}{}{}", origin_clean, path, query_str);
                 info!("Forwarding request to origin: {}", target_url);
 
-                match forward_to_origin(
-                    &method,
-                    &target_url,
-                    &headers,
-                    req_body.clone(),
-                )
-                .await
-                {
+                match forward_to_origin(&method, &target_url, &headers, req_body.clone()).await {
                     Ok((origin_status, origin_headers, origin_resp_body)) => {
                         let duration_ms = start_time.elapsed().as_millis() as u64;
                         let origin_headers_json = serialize_headers(&origin_headers);
-                        let origin_resp_body_str =
-                            String::from_utf8(origin_resp_body.clone()).ok();
+                        let origin_resp_body_str = String::from_utf8(origin_resp_body.clone())
+                            .ok()
+                            .map(|s| format_json_str(&s));
 
                         if config.record_traffic {
                             let log_entry = TrafficLogEntry {
@@ -393,11 +387,11 @@ async fn forward_to_origin(
     // Forward original headers (excluding host and content-length)
     for (k, v) in headers.iter() {
         let key_str = k.as_str();
-        if !key_str.eq_ignore_ascii_case("host")
-            && !key_str.eq_ignore_ascii_case("content-length")
+        if !key_str.eq_ignore_ascii_case("host") && !key_str.eq_ignore_ascii_case("content-length")
         {
             if let Ok(val_bytes) = reqwest::header::HeaderValue::from_bytes(v.as_bytes()) {
-                if let Ok(header_name) = reqwest::header::HeaderName::from_bytes(key_str.as_bytes()) {
+                if let Ok(header_name) = reqwest::header::HeaderName::from_bytes(key_str.as_bytes())
+                {
                     req_builder = req_builder.header(header_name, val_bytes);
                 }
             }
@@ -432,12 +426,25 @@ async fn forward_to_origin(
     Ok((status, resp_headers, bytes.to_vec()))
 }
 
-fn serialize_headers(headers: &HeaderMap) -> String {
-    let mut map = HashMap::new();
+pub fn serialize_headers(headers: &hyper::HeaderMap) -> String {
+    let mut map = serde_json::Map::new();
     for (k, v) in headers.iter() {
         if let Ok(v_str) = v.to_str() {
-            map.insert(k.as_str(), v_str);
+            map.insert(
+                k.as_str().to_string(),
+                serde_json::Value::String(v_str.to_string()),
+            );
         }
     }
-    serde_json::to_string(&map).unwrap_or_else(|_| "{}".to_string())
+    serde_json::to_string_pretty(&serde_json::Value::Object(map))
+        .unwrap_or_else(|_| "{}".to_string())
+}
+
+fn format_json_str(s: &str) -> String {
+    if let Ok(val) = serde_json::from_str::<serde_json::Value>(s) {
+        if let Ok(pretty) = serde_json::to_string_pretty(&val) {
+            return pretty;
+        }
+    }
+    s.to_string()
 }

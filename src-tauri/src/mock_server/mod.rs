@@ -61,9 +61,7 @@ pub fn save_mock_config(
 }
 
 #[tauri::command]
-pub fn get_rest_rules(
-    state: State<'_, MockServerAppState>,
-) -> Result<Vec<RestMockRule>, String> {
+pub fn get_rest_rules(state: State<'_, MockServerAppState>) -> Result<Vec<RestMockRule>, String> {
     state
         .db
         .get_rest_rules()
@@ -82,10 +80,7 @@ pub fn save_rest_rule(
 }
 
 #[tauri::command]
-pub fn delete_rest_rule(
-    state: State<'_, MockServerAppState>,
-    id: String,
-) -> Result<(), String> {
+pub fn delete_rest_rule(state: State<'_, MockServerAppState>, id: String) -> Result<(), String> {
     state
         .db
         .delete_rest_rule(&id)
@@ -132,9 +127,7 @@ pub fn stop_rest_mock(state: State<'_, MockServerAppState>) -> Result<String, St
 }
 
 #[tauri::command]
-pub fn get_grpc_rules(
-    state: State<'_, MockServerAppState>,
-) -> Result<Vec<GrpcMockRule>, String> {
+pub fn get_grpc_rules(state: State<'_, MockServerAppState>) -> Result<Vec<GrpcMockRule>, String> {
     state
         .db
         .get_grpc_rules()
@@ -153,10 +146,7 @@ pub fn save_grpc_rule(
 }
 
 #[tauri::command]
-pub fn delete_grpc_rule(
-    state: State<'_, MockServerAppState>,
-    id: String,
-) -> Result<(), String> {
+pub fn delete_grpc_rule(state: State<'_, MockServerAppState>, id: String) -> Result<(), String> {
     state
         .db
         .delete_grpc_rule(&id)
@@ -164,9 +154,7 @@ pub fn delete_grpc_rule(
 }
 
 #[tauri::command]
-pub fn get_proto_files(
-    state: State<'_, MockServerAppState>,
-) -> Result<Vec<GrpcProtoFile>, String> {
+pub fn get_proto_files(state: State<'_, MockServerAppState>) -> Result<Vec<GrpcProtoFile>, String> {
     state
         .db
         .get_proto_files()
@@ -199,10 +187,7 @@ pub fn save_proto_files_batch(
 }
 
 #[tauri::command]
-pub fn delete_proto_file(
-    state: State<'_, MockServerAppState>,
-    id: String,
-) -> Result<(), String> {
+pub fn delete_proto_file(state: State<'_, MockServerAppState>, id: String) -> Result<(), String> {
     state
         .db
         .delete_proto_file(&id)
@@ -210,9 +195,7 @@ pub fn delete_proto_file(
 }
 
 #[tauri::command]
-pub fn delete_all_proto_files(
-    state: State<'_, MockServerAppState>,
-) -> Result<usize, String> {
+pub fn delete_all_proto_files(state: State<'_, MockServerAppState>) -> Result<usize, String> {
     state
         .db
         .delete_all_proto_files()
@@ -299,9 +282,15 @@ pub fn get_mock_servers_status(
 
     Ok(MockServersStatus {
         is_rest_running: running_rest.is_some(),
-        rest_port: running_rest.as_ref().map(|s| s.port).unwrap_or(rest_config.port),
+        rest_port: running_rest
+            .as_ref()
+            .map(|s| s.port)
+            .unwrap_or(rest_config.port),
         is_grpc_running: running_grpc.is_some(),
-        grpc_port: running_grpc.as_ref().map(|s| s.port).unwrap_or(grpc_config.port),
+        grpc_port: running_grpc
+            .as_ref()
+            .map(|s| s.port)
+            .unwrap_or(grpc_config.port),
     })
 }
 
@@ -333,7 +322,10 @@ pub fn convert_log_to_mock_rule(
 
     let name = format!("{} {}", log.method_or_rpc, path);
     let rule = RestMockRule {
-        id: format!("rule-rec-{}", uuid::Uuid::new_v4().to_string()[..8].to_string()),
+        id: format!(
+            "rule-rec-{}",
+            uuid::Uuid::new_v4().to_string()[..8].to_string()
+        ),
         name,
         enabled: true,
         method: log.method_or_rpc,

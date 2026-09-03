@@ -15,9 +15,13 @@ use tauri::Manager;
 
 fn main() {
     let db_path = if let Ok(home) = std::env::var("HOME") {
-        PathBuf::from(home).join(".palugada").join("palugada_mock.db")
+        PathBuf::from(home)
+            .join(".palugada")
+            .join("palugada_mock.db")
     } else if let Ok(userprofile) = std::env::var("USERPROFILE") {
-        PathBuf::from(userprofile).join(".palugada").join("palugada_mock.db")
+        PathBuf::from(userprofile)
+            .join(".palugada")
+            .join("palugada_mock.db")
     } else {
         PathBuf::from("palugada_mock.db")
     };
