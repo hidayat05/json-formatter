@@ -1,0 +1,19 @@
+{
+  "name": "json-formatter",
+  "version": "1.0.0",
+  "description": "![](docs/json-formatter.gif)",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "serve": "^14.2.6"
+  }
+}

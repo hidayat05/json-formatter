@@ -5,3 +5,9 @@ Cargo.lock
 *.wasm
 pkg/
 /src-tauri/target/
+
+# Node & E2E Testing
+node_modules/
+playwright-report/
+test-results/
+playwright/.cache/
